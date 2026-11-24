@@ -2,7 +2,7 @@
 """WW3ds Installer: puts WW3ds and your own Wind Waker disc image on a New 3DS SD card.
 
 Windows and Linux. A window opens when started without arguments; `--help` lists the command-line mode.
-Nothing is downloaded or uploaded unless you press "Download"; your saves (/3ds/ww3ds/user) are never touched.
+Nothing is downloaded or uploaded unless you press "Download"; your saves (/ww3ds/user) are never touched.
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ APP = "WW3ds Installer"
 VERSION = "0.5"
 REPO = "raidspokemon7-hue/WW3ds"
 ISO_SIZE = 1_459_978_240
-GAME_DIR = Path("3ds") / "ww3ds"
+GAME_DIR = Path("ww3ds")
 CIA_NAME = "WW3ds.cia"
 PACK_NAME = "ww_texpack.bin"
 MiB = 1 << 20
@@ -341,7 +341,7 @@ def install(iso: Path, sd: Path, cia: Path, texture_pack: bool, log, progress, c
     log(f"Copied {CIA_NAME} to /cia/")
 
     if copy_iso:
-        log("Copying the disc image to /3ds/ww3ds/ (1.4 GB, a few minutes on most cards)...")
+        log("Copying the disc image to /ww3ds/ (1.4 GB, a few minutes on most cards)...")
         copy_with_progress(iso, iso_dst, progress, cancel, "Copying the disc image")
         log("Copied GZLE01.iso")
     else:

@@ -219,7 +219,7 @@ extern "C" int n3dsUiLoadShortcuts(void)
     if(!loaded)
     {
         loaded = true;
-        result = n3ds_ui::shortcuts.load("sdmc:/3ds/ww3ds/shortcuts.ini");
+        result = n3ds_ui::shortcuts.load("sdmc:/ww3ds/shortcuts.ini");
         if(result == 0)
         {
             n3ds_ui::invalidated.fetch_or(n3ds_ui::allActions,

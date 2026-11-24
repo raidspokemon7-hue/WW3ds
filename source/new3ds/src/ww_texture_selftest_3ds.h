@@ -802,7 +802,7 @@ errors);
         if(replay)fclose(replay);
         consoleInit(GFX_BOTTOM,
 nullptr);
-        printf("Windfall GPU check\n\n%u mismatched texels\n\nReport saved:\n3ds/ww3ds/texture-selftest.txt\n\nSTART: close",
+        printf("Windfall GPU check\n\n%u mismatched texels\n\nReport saved:\nww3ds/texture-selftest.txt\n\nSTART: close",
 errors);
         while(aptMainLoop())
         {

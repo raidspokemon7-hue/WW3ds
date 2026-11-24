@@ -700,10 +700,68 @@ size_t(m) < sizeof line ? size_t(m) : sizeof line - 1);
     {
         false
     } ;
+    static std::atomic < const char * > g_bootStage
+    {
+        "init"
+    } ;
     static u32 g_mainThreadId = 0;
+    static bool g_c3dReady = false;
+    static bool g_gpuShutdownDone = false;
+    void n3dsSetBootStage(const char * stage)
+    {
+        if (stage) g_bootStage.store(stage,
+std::memory_order_release);
+        
+    }
+    const char * n3dsBootStage(void)
+    {
+        const char * s = g_bootStage.load(std::memory_order_acquire);
+        return s ? s : "init";
+        
+    }
+    void n3dsPumpApt(void)
+    {
+        aptMainLoop();
+        
+    }
+    void n3dsShowBootError(const char * message)
+    {
+        LightLock_Lock(&g_logLock);
+        g_consoleOn = true;
+        LightLock_Unlock(&g_logLock);
+        consoleInit(GFX_BOTTOM,
+nullptr);
+        if (message) 
+        {
+            std::printf("%s",
+message);
+            n3dsLog("%s",
+message);
+            
+        }
+        gfxFlushBuffers();
+        gfxScreenSwapBuffers(GFX_BOTTOM,
+false);
+        
+    }
+    int n3dsWaitStartOrQuit(void)
+    {
+        while (aptMainLoop()) 
+        {
+            hidScanInput();
+            if (hidKeysDown() & KEY_START) return 1;
+            gfxFlushBuffers();
+            gfxSwapBuffers();
+            gspWaitForVBlank();
+            
+        }
+        return 0;
+        
+    }
     int n3dsPrepareExit(void)
     {
         g_processExiting.store(true);
+        n3dsSetBootStage("exit");
         if(g_mainThreadId)
         {
             LightLock_Lock(&g_logLock);
@@ -762,8 +820,6 @@ nullptr);
 false);
             
         }
-        mkdir("sdmc:/3ds",
-0777);
         mkdir(N3DS_ROOT,
 0777);
         int hwTest = - 1;
@@ -1010,8 +1066,9 @@ g_hwTest,
 now); hwTestNext(); 
                 }
                 seen[1] = seen[0]; seen[0] = now;
-                n3dsLog("[watchdog] %d s: frame %lu, audio blocks %u, drains %u/%u, worker process %u/%u end-frame stage %u, renderer op %u stage %u, mail yields %u; renderer at \"%s\" %d (step %u); core-0 probes prio 0x1A %u, 0x3F %u\n",
+                n3dsLog("[watchdog] %d s: boot \"%s\", frame %lu, audio blocks %u, drains %u/%u, worker process %u/%u end-frame stage %u, renderer op %u stage %u, mail yields %u; renderer at \"%s\" %d (step %u); core-0 probes prio 0x1A %u, 0x3F %u\n",
 i * 2,
+n3dsBootStage(),
 (unsigned long)g_frames.load(),
 g_n3dsAudioBlocks,
 g_n3dsMark[0],
@@ -1267,6 +1324,8 @@ r4);
     }
     int n3dsGpuInitLocal(void) 
     {
+        n3dsSetBootStage("gpu");
+        n3dsPumpApt();
         const char * presentFence = std::getenv("N3DS_PRESENT_FENCE");
         g_measurePresent = presentFence 
 && !std::strcmp(presentFence,
@@ -1317,6 +1376,9 @@ nullptr,
             return 0;
             
         }
+        g_c3dReady = true;
+        g_gpuShutdownDone = false;
+        n3dsPumpApt();
         cachetest::runAndFix();
         coreprobe::run("boot");
         if (std::getenv("N3DS_DEPTH_PROBE")) depthprobe::run();
@@ -3044,6 +3106,9 @@ N3DS_ROOT "/ww_bundle_misses.bin");
 && g_bottomUi.takeDirty()) || g_consoleOn) 
 && !g_routeOwnsBottom.load(std::memory_order_acquire)) 
         {
+            // Serialize with citro3d's deferred swap so we never paint/swap
+            // while a GX display transfer still targets the bottom buffer.
+            C3Di_RenderQueueWaitDone();
             gfxFlushBuffers();
             gfxScreenSwapBuffers(GFX_BOTTOM,
 false);
@@ -3351,7 +3416,7 @@ done);
     static int g_abFoliageFar = [] 
     {
         const char * v = std::getenv("N3DS_AB_FOLIAGE");
-        return v ? std::atoi(v) : 3000;
+        return v ? std::atoi(v) : 2000;
         
     }
     ();
@@ -3756,17 +3821,27 @@ frame,
     }
     void n3dsGpuShutdownLocal(void) 
     {
-        if (!g_r) return;
-        C3Di_RenderQueueWaitDone();
+        if (g_gpuShutdownDone) return;
+        g_gpuShutdownDone = true;
+        if (g_c3dReady) C3Di_RenderQueueWaitDone();
         if(g_processExiting.load())
         {
-            g_r->stopPacketWorker();
-            C3D_Fini();
+            if (g_r) g_r->stopPacketWorker();
+            if (g_c3dReady) 
+            {
+                C3D_Fini();
+                g_c3dReady = false;
+                
+            }
             return;
             
         }
-        delete g_r;
-        g_r = nullptr;
+        if (g_r) 
+        {
+            delete g_r;
+            g_r = nullptr;
+            
+        }
         if (g_tgt) 
         {
             C3D_RenderTargetDelete(g_tgt);
@@ -3779,7 +3854,12 @@ frame,
             g_shots = nullptr;
             
         }
-        C3D_Fini();
+        if (g_c3dReady) 
+        {
+            C3D_Fini();
+            g_c3dReady = false;
+            
+        }
         delete g_recorder;
         g_recorder = nullptr;
         for (auto*& frame:g_cpuFrames)

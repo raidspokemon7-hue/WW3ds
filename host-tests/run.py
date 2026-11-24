@@ -17,10 +17,10 @@ def main():
     if args.texture_tools:
         if args.python_only:parser.error('--texture-tools requires a C++17 compiler; omit --python-only')
         subprocess.run([sys.executable,str(ROOT/'utilities/texture-converter/build.py')],check=True)
-    for folder in ['sd-card-installer','utilities/sd-export','utilities/console-logs','utilities/timing-overlay','utilities/release-prep','utilities/release-prep/runtime-assets','utilities/texture-converter']:
+    for folder in ['host-tests','sd-card-installer','utilities/sd-export','utilities/console-logs','utilities/timing-overlay','utilities/release-prep','utilities/release-prep/runtime-assets','utilities/texture-converter','utilities/ciso-to-iso']:
         subprocess.run([sys.executable,'-m','unittest','discover','-v','-s',str(ROOT/folder)],check=True,cwd=ROOT)
     if not args.python_only:
-        compiler=os.environ.get('CXX') or shutil.which('c++') or shutil.which('g++') or shutil.which('clang++')
+        compiler=os.environ.get('CXX') or shutil.which('g++') or shutil.which('c++') or shutil.which('clang++')
         if not compiler:parser.error('A C++17 compiler is required, or use --python-only.')
         with tempfile.TemporaryDirectory(prefix='ww3ds-test-') as directory:
             binary=Path(directory)/('platform.exe' if os.name=='nt' else 'platform')

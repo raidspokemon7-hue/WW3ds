@@ -841,6 +841,12 @@ std::memory_order_acq_rel)) dropSceneCaches();
         R3T("trimRenderPool",
 0);
         be_.trimRenderPool();
+        if (!target_) 
+        {
+            R.rendered = false;
+            return R;
+            
+        }
         R3T("C3D_FrameBegin",
 0);
         const uint64_t beginTick = opt_.frameTiming?svcGetSystemTick():0;
@@ -911,7 +917,8 @@ c,
 picaFrameClearDepth());
             
         }
-        if (routeLinked_) 
+        if (routeLinked_ 
+&& routeTarget_) 
         {
             C3D_RenderTargetClear(routeTarget_,
 C3D_CLEAR_ALL,
@@ -1223,7 +1230,7 @@ nb);
                                 char fn[64];
                                 std::snprintf(fn,
 sizeof fn,
-"sdmc:/3ds/ww3ds/inddump_%d.bin",
+"sdmc:/ww3ds/inddump_%d.bin",
 m);
                                 if (FILE * f = p ? std::fopen(fn,
 "wb") : nullptr) 

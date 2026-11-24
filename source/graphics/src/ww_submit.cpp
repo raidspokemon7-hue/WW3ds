@@ -247,6 +247,13 @@ indices))
                 }
                 if(!P.externalVertices) P.vertices.resize(size_t(P.stride) * P.vertexCount);
                 uint8_t * packedVertices = P.externalVertices?P.externalVertices:P.vertices.data();
+                if (!packedVertices || !P.stride || !P.vertexCount) 
+                {
+                    P.uniforms.clear();
+                    P.notes.push_back("vertex packing buffer missing");
+                    return;
+                    
+                }
                 const uint32_t stride = P.stride;
                 if (P.planar) 
                 {

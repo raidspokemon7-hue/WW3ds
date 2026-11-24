@@ -287,7 +287,7 @@ c);
 }
 namespace 
 {
-    const char * kDir = "sdmc:/3ds/ww3ds/replay/";
+    const char * kDir = "sdmc:/ww3ds/replay/";
     struct Memory : t2p::GuestMem 
     {
         std::vector < uint8_t > bytes;

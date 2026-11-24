@@ -1159,6 +1159,12 @@ C3D_RenderTarget * mainTarget)
             return fail("plan refused: " + L.why);
             
         }
+        if (!L.shader) 
+        {
+            st_.refused++;
+            return fail("plan has no shader");
+            
+        }
         if (!loadShader( * L.shader)) 
         {
             st_.refused++;
@@ -1263,6 +1269,12 @@ size_t(L.indexCount) * 2);
             
         } ;
         ShaderHandle * h = reinterpret_cast < ShaderHandle * > (L.shader->user);
+        if (!h || !h->prog.vertexShader) 
+        {
+            st_.refused++;
+            return fail("shader handle missing after load");
+            
+        }
         if (h != program_) 
         {
             C3D_BindProgram(&h->prog);
@@ -1804,6 +1816,7 @@ R);
         } ;
         if (g_hwTest || g_drawIdMode || !L.ok) return draw(L);
         if (!R.ok) return viaDraw();
+        if (!L.shader) return viaDraw();
         if (!loadShader( * L.shader)) 
         {
             st_.refused++;
@@ -1811,7 +1824,7 @@ R);
             
         }
         ShaderHandle * h = reinterpret_cast < ShaderHandle * > (L.shader->user);
-        if (h != R.program) return viaDraw();
+        if (!h || h != R.program) return viaDraw();
         for (int u = 0; u < 3; u++) 
         {
             if (!L.units[u].enabled) continue;

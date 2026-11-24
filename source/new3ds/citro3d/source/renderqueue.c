@@ -273,8 +273,11 @@ void C3D_FrameEnd(u8 flags)
 			if (rows && rows < target->frameBuf.height)
 			{
 				u32* out = (u32*)gfxGetFramebuffer(target->screen, target->side, NULL, NULL);
-				u32 dim = GX_BUFFER_DIM((u32)target->frameBuf.width, (u32)rows);
-				GX_DisplayTransfer((u32*)target->frameBuf.colorBuf, dim, out, dim, target->transferFlags);
+				if (target->frameBuf.colorBuf && out)
+				{
+					u32 dim = GX_BUFFER_DIM((u32)target->frameBuf.width, (u32)rows);
+					GX_DisplayTransfer((u32*)target->frameBuf.colorBuf, dim, out, dim, target->transferFlags);
+				}
 			} else
 				C3D_FrameBufTransfer(&target->frameBuf, target->screen, target->side, target->transferFlags);
 		}

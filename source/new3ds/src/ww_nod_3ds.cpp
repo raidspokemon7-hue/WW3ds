@@ -4,6 +4,67 @@
 #include <cstring>
 #include <mutex>
 #include <vector>
+#include "ww_ciso_3ds.h"
+namespace
+{
+    struct CisoStream
+    {
+        NodDiscStream inner
+        {
+            
+        } ;
+        N3dsCisoMap map;
+        
+    } ;
+    int64_t cisoReadAt(void * user,
+uint64_t off,
+uint8_t * out,
+size_t len)
+    {
+        auto * c = static_cast < CisoStream * > (user);
+        size_t got = 0;
+        while (got < len)
+        {
+            uint64_t fileOff = 0;
+            bool zero = false;
+            const size_t chunk = c->map.step(off + got,
+len - got,
+&fileOff,
+&zero);
+            if (!chunk) return int64_t(got) ? int64_t(got) : - 1;
+            if (zero) std::memset(out + got,
+0,
+chunk);
+            else
+            {
+                size_t part = 0;
+                while (part < chunk)
+                {
+                    const int64_t n = c->inner.read_at(c->inner.user_data,
+fileOff + part,
+out + got + part,
+chunk - part);
+                    if (n <= 0) return got ? int64_t(got) : n;
+                    part += size_t(n);
+                    
+                }
+                
+            }
+            got += chunk;
+            
+        }
+        return int64_t(got);
+        
+    }
+    void cisoClose(void * user)
+    {
+        auto * c = static_cast < CisoStream * > (user);
+        if (c->inner.close) c->inner.close(c->inner.user_data);
+        delete c;
+        
+    }
+    
+}
 struct NodHandle 
 {
     enum Kind 
@@ -101,6 +162,42 @@ NodHandle * * out)
         d->kind = NodHandle::Disc;
         d->stream = * stream;
         d->mu = new std::mutex;
+        unsigned char cisoHead[kN3dsCisoHeaderSize];
+        if (readAt(d,
+0,
+cisoHead,
+8) && std::memcmp(cisoHead,
+"CISO",
+4) == 0)
+        {
+            if (!readAt(d,
+0,
+cisoHead,
+sizeof cisoHead))
+            {
+                if (d->stream.close) d->stream.close(d->stream.user_data);
+                delete d->mu;
+                delete d;
+                return NOD_RESULT_ERR_FORMAT;
+                
+            }
+            auto * wrap = new CisoStream;
+            wrap->inner = d->stream;
+            if (!wrap->map.load(cisoHead,
+sizeof cisoHead))
+            {
+                delete wrap;
+                if (d->stream.close) d->stream.close(d->stream.user_data);
+                delete d->mu;
+                delete d;
+                return NOD_RESULT_ERR_FORMAT;
+                
+            }
+            d->stream.user_data = wrap;
+            d->stream.read_at = reinterpret_cast < decltype(d->stream.read_at) > (cisoReadAt);
+            d->stream.close = reinterpret_cast < decltype(d->stream.close) > (cisoClose);
+            
+        }
         if (!readAt(d,
 0,
 d->header,

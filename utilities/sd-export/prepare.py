@@ -97,7 +97,7 @@ def prepare(iso: Path, manifest: Path, destination: Path, cancel=None, log=print
             run_tool([sys.executable,str(build_script)],cancel,log)
         converter=checked(converter)
     with tempfile.TemporaryDirectory(prefix='.ww3ds-',dir=destination.parent) as work:
-        stage=Path(work);data=stage/'3ds/ww3ds';data.mkdir(parents=True);(stage/'cia').mkdir();(data/'user').mkdir()
+        stage=Path(work);data=stage/'ww3ds';data.mkdir(parents=True);(stage/'cia').mkdir();(data/'user').mkdir()
         log('Checking and copying your ISO…')
         iso_hash=digest(iso,cancel,data/'GZLE01.iso')
         tool_log=[]
@@ -110,14 +110,14 @@ def prepare(iso: Path, manifest: Path, destination: Path, cancel=None, log=print
         if magic!=b'WWTP' or version!=2 or count==0: raise PreparationError('The converter produced an incompatible or empty texture pack.')
         (stage/'texsrc.bin').unlink()
         log('Copying the CIA and material bundles…')
-        records={'3ds/ww3ds/GZLE01.iso':iso_hash}
-        for src,rel in [(cia,'cia/WW3ds.cia')]+[(p,'3ds/ww3ds/'+n) for p,n in inputs]:
+        records={'ww3ds/GZLE01.iso':iso_hash}
+        for src,rel in [(cia,'cia/WW3ds.cia')]+[(p,'ww3ds/'+n) for p,n in inputs]:
             records[rel]=digest(src,cancel,stage/rel)
-        records['3ds/ww3ds/ww_texpack.bin']=digest(data/'ww_texpack.bin',cancel)
+        records['ww3ds/ww_texpack.bin']=digest(data/'ww_texpack.bin',cancel)
         report={'format':1,'release':str(config.get('release','unlabelled')),'disc_id':'GZLE01','disc_revision':rev,'texture_pack_version':version,'texture_entries':count,'texture_options_signature':sig,'sha256':records}
         (stage/'PREPARATION.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
         (stage/'conversion.log').write_text('\n'.join(tool_log),encoding='utf-8')
-        (stage/'INSTALL.txt').write_text('WW3ds SD export\n\nCopy the cia/ and 3ds/ folders to your SD card. Install cia/WW3ds.cia with your CIA installer, then launch from HOME Menu.\n\nFor an EXISTING installation: back up user/ first. Copy new program/data files; preserve user/, ww_bundle_misses.bin and your configuration. Never replace saves with an empty folder.\n\nYour game data was prepared locally. Do not upload this export to GitHub or redistribute it. DSP firmware, if required, must come from your console.\n\nThis tool did not install a title or test it on hardware. A texture pack requires a matching game build; read the release notes.\n',encoding='utf-8')
+        (stage/'INSTALL.txt').write_text('WW3ds SD export\n\nCopy the cia/ and ww3ds/ folders to your SD card root. Install cia/WW3ds.cia with your CIA installer, then launch from HOME Menu.\n\nFor an EXISTING installation: back up user/ first. Copy new program/data files; preserve user/, ww_bundle_misses.bin and your configuration. Never replace saves with an empty folder.\n\nYour game data was prepared locally. Do not upload this export to GitHub or redistribute it. DSP firmware, if required, must come from your console.\n\nThis tool did not install a title or test it on hardware. A texture pack requires a matching game build; read the release notes.\n',encoding='utf-8')
         if cancel.is_set(): raise Cancelled('Cancelled before export completion.')
         if destination.exists(): raise PreparationError('Output folder appeared during conversion; refusing to overwrite it.')
         os.rename(stage,destination)

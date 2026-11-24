@@ -72,6 +72,9 @@ void C3D_FrameBufClear(C3D_FrameBuf* frameBuf, C3D_ClearBits clearBits, u32 clea
 	u32 size = (u32)frameBuf->width * frameBuf->height;
 	u32 cfs = colorFmtSizes[frameBuf->colorFmt];
 	u32 dfs = depthFmtSizes[frameBuf->depthFmt];
+	if ((clearBits & C3D_CLEAR_COLOR) && !frameBuf->colorBuf) clearBits &= ~C3D_CLEAR_COLOR;
+	if ((clearBits & C3D_CLEAR_DEPTH) && !frameBuf->depthBuf) clearBits &= ~C3D_CLEAR_DEPTH;
+	if (!clearBits) return;
 	void* colorBufEnd = (u8*)frameBuf->colorBuf + size*(2+cfs);
 	void* depthBufEnd = (u8*)frameBuf->depthBuf + size*(2+dfs);
 
@@ -94,6 +97,7 @@ void C3D_FrameBufClear(C3D_FrameBuf* frameBuf, C3D_ClearBits clearBits, u32 clea
 void C3D_FrameBufTransfer(C3D_FrameBuf* frameBuf, gfxScreen_t screen, gfx3dSide_t side, u32 transferFlags)
 {
 	u32* outputFrameBuf = (u32*)gfxGetFramebuffer(screen, side, NULL, NULL);
+	if (!frameBuf->colorBuf || !outputFrameBuf) return;
 	u32 dim = GX_BUFFER_DIM((u32)frameBuf->width, (u32)frameBuf->height);
 	GX_DisplayTransfer((u32*)frameBuf->colorBuf, dim, outputFrameBuf, dim, transferFlags);
 }

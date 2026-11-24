@@ -61,7 +61,7 @@ class Checks(unittest.TestCase):
     def test_install_keeps_saves_and_skips_same_iso(self):
         sd = self.d / "sd"
         (sd / "Nintendo 3DS").mkdir(parents=True)
-        save = sd / "3ds/ww3ds/user/save.gci"
+        save = sd / "ww3ds/user/save.gci"
         save.parent.mkdir(parents=True)
         save.write_bytes(b"precious")
         iso, cia = self.d / "g.iso", self.d / "WW3ds.cia"
@@ -70,7 +70,7 @@ class Checks(unittest.TestCase):
             fake_iso(iso)
             fake_cia(cia)
             ci.install(iso, sd, cia, False, log.append, lambda *a: None, threading.Event())
-            self.assertEqual((sd / "3ds/ww3ds/GZLE01.iso").read_bytes(), iso.read_bytes())
+            self.assertEqual((sd / "ww3ds/GZLE01.iso").read_bytes(), iso.read_bytes())
             self.assertTrue((sd / "cia/WW3ds.cia").is_file())
             ci.install(iso, sd, cia, False, log.append, lambda *a: None, threading.Event())
         self.assertTrue(any("not copied again" in l for l in log))

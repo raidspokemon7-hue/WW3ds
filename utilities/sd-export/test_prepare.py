@@ -17,9 +17,9 @@ class ExportTests(unittest.TestCase):
   with patch.object(prepare,'run_tool',side_effect=self.tools):return prepare.prepare(self.root/'game.iso',self.manifest,self.root/'output',cancel=cancel,log=lambda s:None)
  def test_export_layout_hashes_and_no_testing_files(self):
   r=self.export();out=self.root/'output';self.assertEqual(len(r['sha256']),4)
-  self.assertTrue((out/'3ds/ww3ds/user').is_dir());self.assertTrue((out/'cia/WW3ds.cia').is_file())
-  self.assertFalse((out/'texsrc.bin').exists());self.assertFalse((out/'3ds/ww3ds/env.txt').exists())
-  self.assertEqual((out/'3ds/ww3ds/GZLE01.iso').read_bytes(),(self.root/'game.iso').read_bytes())
+  self.assertTrue((out/'ww3ds/user').is_dir());self.assertTrue((out/'cia/WW3ds.cia').is_file())
+  self.assertFalse((out/'texsrc.bin').exists());self.assertFalse((out/'ww3ds/env.txt').exists())
+  self.assertEqual((out/'ww3ds/GZLE01.iso').read_bytes(),(self.root/'game.iso').read_bytes())
  def test_bundled_tools_build_and_stale_rebuild(self):
   import os
   tools=self.root/'utilities/texture-converter';(tools/'src').mkdir(parents=True)

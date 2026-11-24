@@ -25,6 +25,9 @@ uint64_t);
 #include <vector>
 #include "ww_n3ds.h"
 #include "ww_core2_replay_test_3ds.h"
+#include "ww_disc_header_3ds.h"
+#include "ww_ciso_3ds.h"
+#include "ww_exit_order_3ds.h"
 extern "C" int aurora_main(int argc,
 char * argv[]);
 extern "C" void aurora_shutdown(void);
@@ -43,36 +46,54 @@ size_t);
 namespace 
 {
     bool s_gameStarted = false;
+    N3dsExitState s_exit;
+    bool s_gfxLive = false;
     
 }
+extern "C" void __appExit(void);
 extern "C" void userAppExit(void)
 {
     if(!n3dsPrepareExit())return;
-    threadCreate([](void * )
-    {
-        svcSleepThread(10000000000LL);svcExitProcess();
-    }
-    ,
-nullptr,
-0x2000,
-0x19,
-0,
-true);
+    if(!s_exit.mark(N3DS_EXIT_PREPARE))return;
     n3dsLog("[exit] cleanup begin game %d\n",
 int(s_gameStarted));
     if(s_gameStarted)
     {
-        const int cardIdle = n3dsMemcardQuiesce(5000);
-        n3dsLog("[exit] card idle %d\n",
+        if(s_exit.mark(N3DS_EXIT_CARD))
+        {
+            const int cardIdle = n3dsMemcardQuiesce(5000);
+            n3dsLog("[exit] card idle %d\n",
 cardIdle);
-        n3dsAudioShutdown();
-        n3dsLog("[exit] NDSP stopped\n");
-        aurora_shutdown();
-        n3dsLog("[exit] FIFO/render owner/GPU stopped\n");
+            
+        }
+        if(s_exit.mark(N3DS_EXIT_AUDIO))
+        {
+            n3dsAudioShutdown();
+            n3dsLog("[exit] NDSP stopped\n");
+            
+        }
+        if(s_exit.mark(N3DS_EXIT_GPU))
+        {
+            aurora_shutdown();
+            n3dsLog("[exit] FIFO/render owner/GPU stopped\n");
+            
+        }
         
     }
-    gfxExit();
-    n3dsLog("[exit] gfx stopped; services next, heaps stay mapped\n");
+    else if(s_exit.mark(N3DS_EXIT_GPU))
+    {
+        n3dsGpuShutdown();
+        
+    }
+    if(s_gfxLive 
+&& s_exit.mark(N3DS_EXIT_GFX))
+    {
+        gspWaitForVBlank();
+        gfxExit();
+        s_gfxLive = false;
+        n3dsLog("[exit] gfx stopped; services next, heaps stay mapped\n");
+        
+    }
     
 }
 static void exitThreadReport(void)
@@ -138,8 +159,12 @@ __ATOMIC_ACQ_REL))
 (unsigned long)caller);
     userAppExit();
     exitThreadReport();
-    n3dsLog("[exit] aptExit next\n");
-    aptExit();
+    if(s_exit.mark(N3DS_EXIT_APT))
+    {
+        n3dsLog("[exit] aptExit next\n");
+        aptExit();
+        
+    }
     extern void ( * __system_retAddr)(void);
     n3dsLog("[exit] apt prepared; APT_CloseApplication %s, then the process ends (kernel closes hid, card, srv)\n",
 __system_retAddr?"next":"not requested");
@@ -148,11 +173,15 @@ __system_retAddr?"next":"not requested");
     svcExitProcess();
     
 }
+extern "C" [[noreturn]] void n3dsCleanExit(void)
+{
+    __appExit();
+    __builtin_unreachable();
+    
+}
 extern "C" [[noreturn]] void __libctru_exit(int)
 {
-    extern void ( * __system_retAddr)(void);
-    if(__system_retAddr)__system_retAddr();
-    svcExitProcess();
+    __appExit();
     __builtin_unreachable();
     
 }
@@ -215,6 +244,8 @@ int main(int,
 char * * ) 
 {
     n3dsInit();
+    s_gfxLive = true;
+    n3dsSetBootStage("boot");
     if(core2test::requested()) return core2test::run();
     #ifdef N3DS_RENDER_OPT
 n3dsLog("[build] renderer compiler O%d LTO %d, strict floating point\n",
@@ -268,30 +299,46 @@ tid,
 6);
                     n3dsLog("[3ds] NS_RebootToTitle %08lx\n",
 (unsigned long)rr);
-                    if (R_SUCCEEDED(rr)) for (;;) svcSleepThread(100000000LL);
+                    if (R_SUCCEEDED(rr)) 
+                    {
+                        // Keep APT alive while the reboot takes over. If we are
+                        // still here after a few seconds, fall through to the
+                        // on-screen message instead of sleeping forever.
+                        for (int i = 0; i < 50; i++) 
+                        {
+                            n3dsPumpApt();
+                            if (!aptMainLoop()) break;
+                            gspWaitForVBlank();
+                            svcSleepThread(100000000LL);
+                            
+                        }
+                        n3dsLog("[3ds] still running after NS_RebootToTitle; showing memory help\n");
+                        
+                    }
                     nsExit();
                     
                 } else n3dsLog("[3ds] ns:s not available\n");
                 aptSetChainloader(tid,
 MEDIATYPE_SD);
-                gfxExit();
-                _exit(0);
                 
             }
             remove(marker);
-            n3dsLog("\nNot enough memory: the console gave this app %lu MB,\nit needs the New 3DS 124 MB mode.\n\nStart it from its HOME Menu icon (not from FBI or\nanother launcher). If this was the HOME Menu icon,\nturn the console fully off and on and try again.\n\nPress START to exit.\n",
-(unsigned long)(appMem >> 20));
-            while (aptMainLoop()) 
             {
-                hidScanInput();
-                if (hidKeysDown() & KEY_START) break;
-                gfxFlushBuffers();
-                gfxSwapBuffers();
-                gspWaitForVBlank();
+                char msg[512];
+                std::snprintf(msg,
+sizeof msg,
+"\nNot enough memory: the console gave this app %lu MB,\n"
+"it needs the New 3DS 124 MB mode.\n\n"
+"Start it from its HOME Menu icon (not from FBI or\n"
+"another launcher). If this was the HOME Menu icon,\n"
+"turn the console fully off and on and try again.\n\n"
+"Press START to exit.\n",
+(unsigned long)(appMem >> 20));
+                n3dsShowBootError(msg);
                 
             }
-            gfxExit();
-            _exit(1);
+            n3dsWaitStartOrQuit();
+            n3dsCleanExit();
             
         }
         
@@ -360,57 +407,48 @@ double(t) * 1000.0 / SYSCLOCK_ARM11);
     }
     if (const char * v = std::getenv("N3DS_BIGALLOC_LOG")) g_bigLog = std::atoi(v) != 0;
     romfsInit();
+    n3dsSetBootStage("disc");
+    n3dsPumpApt();
     static char discPath[512];
     auto headerKind = [](const char * path) ->int 
     {
-        FILE * f = std::fopen(path,
-"rb");
-        if (!f) return 0;
-        unsigned char h[0x20]
-        {
-            
-        } ;
-        const size_t n = std::fread(h,
-1,
-sizeof h,
-f);
-        std::fclose(f);
-        if (n >= 4 
-&& std::memcmp(h,
-"CISO",
-4) == 0) return 2;
-        if (n == sizeof h 
-&& std::memcmp(h,
-"GZLE",
-4) == 0 
-&& std::memcmp(h + 0x1C,
-"\xC2\x33\x9F\x3D",
-4) == 0) return 1;
-        return 0;
+        return n3dsDiscPathKind(path);
         
     } ;
     mkdir(N3DS_ROOT "/game",
 0777);
     const char * disc = nullptr;
-    bool sawCiso = false;
+    auto takeDisc = [&](const char * path,
+int kind) 
+    {
+        if (disc || (kind != 1 
+&& kind != 2)) return;
+        std::snprintf(discPath,
+sizeof discPath,
+"%s",
+path);
+        disc = discPath;
+        
+    } ;
     auto scanDisc = [&](const char * dirPath) 
     {
         if (disc) return;
+        n3dsPumpApt();
         char exact[512];
         std::snprintf(exact,
 sizeof exact,
 "%s/GZLE01.iso",
 dirPath);
-        if (headerKind(exact) == 1) 
-        {
-            std::snprintf(discPath,
-sizeof discPath,
-"%s",
-exact);
-            disc = discPath;
-            return;
-            
-        }
+        takeDisc(exact,
+headerKind(exact));
+        if (disc) return;
+        std::snprintf(exact,
+sizeof exact,
+"%s/GZLE01.ciso",
+dirPath);
+        takeDisc(exact,
+headerKind(exact));
+        if (disc) return;
         if (DIR * dir = opendir(dirPath)) 
         {
             while (const dirent * ent = readdir(dir)) 
@@ -422,8 +460,7 @@ sizeof discPath,
 dirPath,
 ent->d_name);
                 const int kind = headerKind(discPath);
-                if (kind == 2) sawCiso = true;
-                if (kind == 1) 
+                if (kind == 1 || kind == 2) 
                 {
                     disc = discPath;
                     break;
@@ -457,6 +494,8 @@ disc,
     setenv("COS_FPS60",
 "0",
 0);
+    n3dsSetBootStage("saves");
+    n3dsPumpApt();
     mkdir(N3DS_ROOT "/saves",
 0777);
     mkdir(N3DS_ROOT "/saves/USA",
@@ -722,21 +761,15 @@ imported);
     }
     if (!disc) 
     {
-        if (sawCiso) n3dsLog("\nThat disc is a CISO. In Dolphin, right-click the\ngame, choose Convert, and pick ISO. Then put\nthe ISO in\n  %s/game\n\nPress START to exit.\n",
+        char msg[512];
+        std::snprintf(msg,
+sizeof msg,
+"\nPut your Wind Waker (USA) ISO or CISO in\n  %s/game\n"
+"as GZLE01.iso or GZLE01.ciso\n\nPress START to exit.\n",
 N3DS_ROOT);
-        else n3dsLog("\nPut your Wind Waker (USA) ISO in\n  %s/game\n\nPress START to exit.\n",
-N3DS_ROOT);
-        while (aptMainLoop()) 
-        {
-            hidScanInput();
-            if (hidKeysDown() & KEY_START) break;
-            gfxFlushBuffers();
-            gfxSwapBuffers();
-            gspWaitForVBlank();
-            
-        }
-        gfxExit();
-        _exit(1);
+        n3dsShowBootError(msg);
+        n3dsWaitStartOrQuit();
+        n3dsCleanExit();
         
     }
     static char arg0[] = N3DS_ROOT "/ww3ds.3dsx";
@@ -745,6 +778,8 @@ N3DS_ROOT);
         arg0, nullptr
     } ;
     s_gameStarted = true;
+    n3dsSetBootStage("game");
+    n3dsPumpApt();
     return aurora_main(1,
 argv);
     

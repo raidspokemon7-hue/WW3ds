@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 exec 9>/tmp/ww3ds-azahar.lock; echo "waiting for the Azahar lock..." >&2; flock 9
 SD=~/.var/app/org.azahar_emu.Azahar/data/azahar-emu/sdmc
-R=$SD/3ds/ww3ds
+R=$SD/ww3ds
 here=$(cd "$(dirname "$0")" && pwd)
 OUT=${OUT:-$here/shots}
 SECS=${SECS:-120}

@@ -114,7 +114,7 @@ const char * app)
         char buf[256];
         std::snprintf(buf,
 sizeof buf,
-"sdmc:/3ds/%s/",
+"sdmc:/%s/",
 app ? app : "app");
         return strdup(buf);
         

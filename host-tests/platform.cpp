@@ -1,10 +1,14 @@
 #include "ww_qol_config_3ds.h"
 #include "ww_ui_shortcut_config_3ds.h"
 #include "ww_ui_lifecycle_3ds.h"
+#include "ww_disc_header_3ds.h"
+#include "ww_ciso_3ds.h"
+#include "ww_exit_order_3ds.h"
 #include <cassert>
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <vector>
 static FILE * config(const char * text) 
 {
     FILE * f = std::tmpfile();
@@ -186,7 +190,125 @@ assert(load("gyro_invert_x=1\ngyro_invert_y=1\n") == 0);
 assert(qos.motionFlipX 
 && qos.motionFlipY);
 std::remove(argv[1]);
-std::printf("PASS %u lifecycle states; touch cancellation and duplicate assignments; transactional shortcut/QoL parsing\n",
+
+{
+    unsigned char gzle[0x20]
+    {
+        
+    } ;
+    std::memcpy(gzle,
+"GZLE",
+4);
+    gzle[0x1C] = 0xC2;
+    gzle[0x1D] = 0x33;
+    gzle[0x1E] = 0x9F;
+    gzle[0x1F] = 0x3D;
+    assert(n3dsDiscHeaderKind(gzle,
+sizeof gzle) == 1);
+    unsigned char ciso[8]
+    {
+        'C',
+'I',
+'S',
+'O',
+0,
+0,
+0,
+0
+    } ;
+    assert(n3dsDiscHeaderKind(ciso,
+sizeof ciso) == 2);
+    unsigned char junk[0x20]
+    {
+        'G',
+'Z',
+'L',
+'P'
+    } ;
+    assert(n3dsDiscHeaderKind(junk,
+sizeof junk) == 0);
+    assert(n3dsDiscHeaderKind(nullptr,
+0) == 0);
+    assert(n3dsDiscHeaderKind(gzle,
+4) == 0);
+    
+}
+{
+    unsigned char header[kN3dsCisoHeaderSize]
+    {
+        
+    } ;
+    std::memcpy(header,
+"CISO",
+4);
+    const uint32_t block = 0x800;
+    std::memcpy(header + 4,
+&block,
+4);
+    header[8] = 1;
+    header[9] = 0;
+    header[10] = 1;
+    std::vector < unsigned char > raw(block, 'A');
+    std::vector < unsigned char > raw2(block, 'C');
+    FILE * f = std::tmpfile();
+    assert(f);
+    std::fwrite(header,
+1,
+sizeof header,
+f);
+    std::fwrite(raw.data(),
+1,
+raw.size(),
+f);
+    std::fwrite(raw2.data(),
+1,
+raw2.size(),
+f);
+    std::rewind(f);
+    N3dsCisoMap map;
+    assert(map.load(header,
+sizeof header));
+    unsigned char buf[0x800];
+    assert(n3dsCisoReadFile(f,
+&map,
+0,
+buf,
+sizeof buf));
+    assert(buf[0] == 'A' 
+&& buf[0x7FF] == 'A');
+    assert(n3dsCisoReadFile(f,
+&map,
+block,
+buf,
+sizeof buf));
+    assert(buf[0] == 0 
+&& buf[0x7FF] == 0);
+    assert(n3dsCisoReadFile(f,
+&map,
+block * 2,
+buf,
+4));
+    assert(buf[0] == 'C' 
+&& buf[3] == 'C');
+    std::fclose(f);
+    
+}
+{
+    N3dsExitState exit;
+    assert(!exit.readyForHome());
+    assert(exit.mark(N3DS_EXIT_PREPARE));
+    assert(!exit.mark(N3DS_EXIT_PREPARE));
+    assert(exit.mark(N3DS_EXIT_GPU));
+    assert(!exit.mark(N3DS_EXIT_GPU));
+    assert(exit.mark(N3DS_EXIT_GFX));
+    assert(!exit.readyForHome());
+    assert(exit.mark(N3DS_EXIT_APT));
+    assert(exit.readyForHome());
+    assert(exit.has(N3DS_EXIT_GFX) 
+&& exit.has(N3DS_EXIT_APT));
+    
+}
+std::printf("PASS %u lifecycle states; touch cancellation and duplicate assignments; transactional shortcut/QoL parsing; disc header and exit order\n",
 checked);
 
 }

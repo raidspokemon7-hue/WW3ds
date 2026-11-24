@@ -1,6 +1,6 @@
 #pragma once
 #include <stdint.h>
-#define N3DS_ROOT "sdmc:/3ds/ww3ds"
+#define N3DS_ROOT "sdmc:/ww3ds"
 #ifdef __cplusplus
 extern "C" 
 {
@@ -33,6 +33,12 @@ int bytes);
     void n3dsAudioShutdown(void);
     int n3dsMemcardQuiesce(unsigned timeoutMs);
     void n3dsSetLogPath(const char * path);
+    void n3dsSetBootStage(const char * stage);
+    const char * n3dsBootStage(void);
+    void n3dsPumpApt(void);
+    void n3dsShowBootError(const char * message);
+    int n3dsWaitStartOrQuit(void);
+    [[noreturn]] void n3dsCleanExit(void);
     int n3dsInit(void);
     void n3dsLog(const char * fmt,
 ...);

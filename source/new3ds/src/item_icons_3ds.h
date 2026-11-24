@@ -6,6 +6,7 @@
 #include <cstring>
 #include <vector>
 #include "ww_n3ds.h"
+#include "ww_ciso_3ds.h"
 #include "ww_settings_canvas_3ds.h"
 namespace n3ds_icons 
 {
@@ -112,18 +113,22 @@ namespace n3ds_icons
         return names[id];
         
     }
+    inline N3dsCisoMap& discMap()
+    {
+        static N3dsCisoMap m;
+        return m;
+        
+    }
     inline bool readAt(FILE * f,
 uint32_t off,
 void * dst,
 size_t n)
     {
-        return std::fseek(f,
-long(off),
-SEEK_SET) == 0 
-&& std::fread(dst,
-1,
-n,
-f) == n;
+        return n3dsCisoReadFile(f,
+&discMap(),
+off,
+dst,
+n);
         
     }
     inline bool yaz0(const uint8_t * b,
@@ -369,6 +374,20 @@ o);
 "rb");
         if(!f) return nullptr;
         state = - 1;
+        unsigned char cisoHead[kN3dsCisoHeaderSize];
+        std::fseek(f,
+0,
+SEEK_SET);
+        const size_t got = std::fread(cisoHead,
+1,
+sizeof cisoHead,
+f);
+        discMap() = N3dsCisoMap();
+        if (got >= 4 
+&& std::memcmp(cisoHead,
+"CISO",
+4) == 0) discMap().load(cisoHead,
+got);
         uint8_t hdr[0x440];
         if(!readAt(f,
 0,

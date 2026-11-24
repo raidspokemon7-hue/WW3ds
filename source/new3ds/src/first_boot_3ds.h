@@ -6,7 +6,9 @@
 #include "first_boot_gate_3ds.h"
 #include "bottom_intro_3ds.h"
 #include "ww_settings_font_3ds.h"
+#include "ww_n3ds.h"
 #include "ww_renderer3ds.h"
+extern "C" void C3Di_RenderQueueWaitDone(void);
 namespace n3ds_warm 
 {
     inline constexpr const char * kMarker = N3DS_ROOT "/first-run.done";
@@ -232,6 +234,10 @@ u32(stride) * wide * bpp);
     }
     inline void present(int settled) 
     {
+        // Wait out any pending GX display transfer before CPU-painting the
+        // same framebuffers. Racing C3D's FrameEnd transfer caused flicker
+        // and ARM11 null-destination writes on the render core.
+        C3Di_RenderQueueWaitDone();
         char line[64];
         const size_t shaders = state().drawTarget ? state().drawTarget->shaders().size() : 0;
         std::snprintf(line,
@@ -246,7 +252,9 @@ settled);
 "Preparing Wind Waker",
 line,
 settled);
+        gfxFlushBuffers();
         gfxSwapBuffers();
+        gspWaitForVBlank();
         
     }
     inline int settledCount() 
@@ -286,6 +294,7 @@ f);
         g_lockControls.store(false,
 std::memory_order_release);
         s.covering = false;
+        n3dsSetBootStage("title");
         n3dsLog("[warm] first-run loading %s\n",
 timedOut ? "gave up after 90s and opened the menu" : "settled, opening the menu");
         
@@ -315,6 +324,7 @@ timedOut ? "gave up after 90s and opened the menu" : "settled, opening the menu"
 std::memory_order_release);
         output.setHideOutput(true);
         present(0);
+        n3dsSetBootStage("warm");
         n3dsLog("[warm] first launch, covering the menu until it is running smoothly\n");
         
     }

@@ -10,36 +10,39 @@
 
 [WW3ds-sd.zip](https://github.com/raidspokemon7-hue/WW3ds/releases/download/v1/WW3ds-sd.zip)
 
-Unzip onto the SD card. Install `cia/ww3ds.cia` with FBI. Put your own GZLE01.iso in `3ds/ww3ds/game/`.
+Unzip onto the SD card. Install `cia/ww3ds.cia` with FBI. Put your own GZLE01.iso in `ww3ds/game/`.
 
 ## What you need
 
 - A New 3DS, New 3DS XL or New 2DS XL with custom firmware and [FBI](https://github.com/Steveice10/FBI).
-- Your USA ISO copy of Wind Waker for GameCube, GZLE01.
-- A compressed CISO will not boot. In Dolphin, right-click the game, choose Convert, and pick ISO.
+- Your USA copy of Wind Waker for GameCube, GZLE01, as a plain ISO or a Dolphin/Wiimm CISO. NKIT, RVZ, and PSP CSO will not boot.
+
+- Azahar (PC) testing: see [documentation/azahar-testing.md](documentation/azahar-testing.md).
 
 ## Install
 
 1. Install the `ww3ds` CIA with FBI.
-2. On the SD card, put the ISO here:
+2. On the SD card, put the disc here:
 
    ```text
-   3ds/ww3ds/game/GZLE01.iso
+   ww3ds/game/GZLE01.iso
    ```
+
+   A Dolphin CISO is fine as `GZLE01.ciso` in the same folder.
 
 3. Start **ww3ds** from the HOME Menu.
 
-If the ISO is missing, or it is still a CISO, the console tells you and START leaves the game.
+If the disc is missing, the console tells you and START leaves the game.
 
 ## Saves
 
 Saves are memory-card files at:
 
 ```text
-3ds/ww3ds/saves/USA/Card A
+ww3ds/saves/USA/Card A
 ```
 
-To bring a GameCube save across, put a `.gci` or a Dolphin `.raw` in `3ds/ww3ds/saves/`. On the next boot it is imported into Card A, and the file you dropped is moved to `3ds/ww3ds/saves/imported/`. The same Card A files can go back to a GameCube or to Dolphin.
+To bring a GameCube save across, put a `.gci` or a Dolphin `.raw` in `ww3ds/saves/`. On the next boot it is imported into Card A, and the file you dropped is moved to `ww3ds/saves/imported/`. The same Card A files can go back to a GameCube or to Dolphin.
 
 The starting island is the hardest place to run. Bringing a save that has already left Outset is the better way to start.
 

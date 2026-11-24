@@ -334,7 +334,7 @@ nullptr,
 &w,
 &h)) 
                 {
-                    if (FILE * f = fopen("sdmc:/3ds/ww3ds/rbtest.rgba",
+                    if (FILE * f = fopen("sdmc:/ww3ds/rbtest.rgba",
 "wb")) 
                     {
                         uint32_t hd[2] = 

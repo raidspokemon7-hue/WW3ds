@@ -10,6 +10,7 @@
 #include "ww_settings_overlay_3ds.h"
 #include "ww_bottom_panel_3ds.h"
 #include "bottom_intro_3ds.h"
+extern "C" void C3Di_RenderQueueWaitDone(void);
 class BottomUi3ds 
 {
     alignas(8) static inline uint16_t shadow_[320 * 240];
@@ -157,6 +158,9 @@ GFX_LEFT,
     void paintColumn()
     {
         if(n3ds_intro::active() || !n3ds_ui::gpuOwnsBottom.load(std::memory_order_acquire))return;
+        // The GPU owns the upper map rows; wait before CPU-writing the column
+        // so a still-running display transfer cannot leave a null destination.
+        C3Di_RenderQueueWaitDone();
         u16 w = 0, h = 0;
         auto * p = gfxGetFramebuffer(GFX_BOTTOM,
 GFX_LEFT,
@@ -229,7 +233,7 @@ nullptr,
             std::memcpy(host,
 prev,
 sizeof host);
-            if(FILE * f = std::fopen("sdmc:/3ds/ww3ds/ui_routed.rgb565",
+            if(FILE * f = std::fopen("sdmc:/ww3ds/ui_routed.rgb565",
 "wb"))
             {
                 std::fwrite(host,
@@ -275,7 +279,7 @@ nullptr,
         }
         ();
         if(!at || frame != at)return;
-        if(FILE * f = std::fopen("sdmc:/3ds/ww3ds/ui.rgb565",
+        if(FILE * f = std::fopen("sdmc:/ww3ds/ui.rgb565",
 "wb"))
         {
             std::fwrite(shadow_,

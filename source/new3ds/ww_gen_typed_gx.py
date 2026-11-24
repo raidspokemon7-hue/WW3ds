@@ -157,11 +157,3 @@ if fifo.exists():
  assert "detail::sBufferSize = 0;" in s
  s=s.replace("detail::sBufferSize = 0;","detail::sBufferSize = 0; if (kProcessingMode == ProcessingMode::Inline) g_n3dsTypedConsumedSize = 0;")
  fifo.write_text(s)
-import spread_layout
-fresh=[]
-fresh.extend(out.glob('*.h'))
-fresh.extend(out.glob('*.cpp'))
-for name in ('ww_GXFrameBuffer_3ds.cpp.new','ww_fifo_3ds.cpp.new','ww_dvd_3ds.cpp.new'):
- p=out.parent/name
- if p.exists():fresh.append(p)
-for produced in fresh:spread_layout.rewrite(produced)
