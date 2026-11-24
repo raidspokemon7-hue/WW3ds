@@ -8,9 +8,11 @@
 
 ## Download
 
-[WW3ds-sd.zip](https://github.com/raidspokemon7-hue/WW3ds/releases/download/v1/WW3ds-sd.zip)
+[WW3ds-sd.zip](https://github.com/raidspokemon7-hue/WW3ds/releases/download/v1.1/WW3ds-sd.zip)
 
-Unzip onto the SD card. Install `cia/ww3ds.cia` with FBI. Put your own GZLE01.iso in `ww3ds/game/`.
+Unzip onto the SD card. Install `cia/ww3ds.cia` with FBI. Put your own GZLE01.iso in `3ds/ww3ds/game/`.
+
+This pack ships `performance.ini` with `foliage_far=2000` and `real_shadows=0` for better frame rate. Edit that file and restart to tune it.
 
 ## What you need
 
@@ -25,10 +27,10 @@ Unzip onto the SD card. Install `cia/ww3ds.cia` with FBI. Put your own GZLE01.is
 2. On the SD card, put the disc here:
 
    ```text
-   ww3ds/game/GZLE01.iso
+   3ds/ww3ds/game/GZLE01.iso
    ```
 
-   A Dolphin CISO is fine as `GZLE01.ciso` in the same folder.
+   A Dolphin CISO is fine as `GZLE01.ciso` in the same folder. (CISO needs a newer CIA build from `main`.)
 
 3. Start **ww3ds** from the HOME Menu.
 
@@ -39,10 +41,10 @@ If the disc is missing, the console tells you and START leaves the game.
 Saves are memory-card files at:
 
 ```text
-ww3ds/saves/USA/Card A
+3ds/ww3ds/saves/USA/Card A
 ```
 
-To bring a GameCube save across, put a `.gci` or a Dolphin `.raw` in `ww3ds/saves/`. On the next boot it is imported into Card A, and the file you dropped is moved to `ww3ds/saves/imported/`. The same Card A files can go back to a GameCube or to Dolphin.
+To bring a GameCube save across, put a `.gci` or a Dolphin `.raw` in `3ds/ww3ds/saves/`. On the next boot it is imported into Card A, and the file you dropped is moved to `3ds/ww3ds/saves/imported/`. The same Card A files can go back to a GameCube or to Dolphin.
 
 The starting island is the hardest place to run. Bringing a save that has already left Outset is the better way to start.
 
