@@ -9,7 +9,7 @@ struct Performance3ds
     bool fixedUniforms = true;
     bool reusePlans = true;
     bool cacheMaterials = true;
-    bool cacheGeometry = false;
+    bool cacheGeometry = true;
     bool prepareFog = true;
     bool coalesceVertices = true;
     bool planVertices = true;
@@ -45,7 +45,7 @@ struct Performance3ds
     bool commandThread = true;
     bool systemCoreThreads = true;
     int commandCore = 3;
-    bool helperDecode = false;
+    bool helperDecode = true;
     int helperCore = 1;
     bool fenceHeap = true;
     bool workerPackets = false, verifyPackets = false;
@@ -59,7 +59,7 @@ struct Performance3ds
     int backgroundCore = 0;
     bool reverseDepth = true;
     bool useDepthZ = true;
-    int farFoliage = 2000;
+    int farFoliage = 1500;
     bool j3dMeshes = true;
     bool j3dShaders = false;
     bool splitTextures = true;
@@ -93,10 +93,10 @@ struct Performance3ds
     bool copySnapshots = true;
     bool releaseEarly = true;
     bool reuseCopies = false;
-    bool shadowsOn = true;
+    bool shadowsOn = false;
     bool omitDraw = true;
     int skippedFrames = 1;
-    bool clipRigid = false;
+    bool clipRigid = true;
     bool fractionalPaint = true;
     int pacePaint = 1;
     int maxPaintGap = 2;
@@ -740,8 +740,8 @@ f))
         slimState = true;
         inplaceState = true;
         batchMatrices = true;
-        cacheGeometry = false;
-        clipRigid = false;
+        cacheGeometry = true;
+        clipRigid = true;
         typedCommands = false;
         timeDraws = false;
         widePicture = true;
@@ -755,7 +755,7 @@ f))
     }
     static const char * example()
     {
-        return "# Fidelity-preserving optimizations only. Restart after editing.\n# Tree/grass draw distance in game units (default 2000). Islands/horizon unchanged. 3000=farther, 1500=more pop-in.\nfoliage_far=2000\n# Core-2 rendering: 0=off, 1=on (default)\ncore2=1\n# Experimental exact decoded-geometry reuse, bounded3MiB: 0=off, 1=on\ngeometry_cache=0\n# Exact pre-decode primitive coalescing: 0=off, 1=on (default)\nvertex_runs=1\n# Exact consecutive-material cache shortcut: 0=off, 1=on\nmaterial_cache=1\n# Reusable draw plans: 0=off, 1=on (default)\nplan_reuse=1\n# Fixed uniform storage: 0=off, 1=on (default)\npacked_uniforms=1\n# Identical fog preparation: 0=off, 1=on (default)\nfog_prepare=1\n# Cached vertex-decode recipes: 0=off, 1=on\nvertex_plan=1\n# Specialized exact attribute loops: 0=off, 1=on\nvertex_decode=1\n# Exact palette hash memo: 0=off, 1=on\npalette_cache=1\n# Bottom status panel: 0=blank, 1=panel\nbottom_ui=1\n# Detailed GPU timings: 0=logged frames only, 1=every frame\ndraw_timing=0\n" "# Bounded core2 staging: 0=2MiB, 1=8MiB (default1)\npipeline_stage8=1\n" "# Full-width widescreen culling correction: 0=reference, 1=on\nwide_cull=1\n" "# Secondary threads (audio, loading) on core 1: 0=off, 1=on (default1)\ncore1_threads=1\n" "# GX command translation on its own thread: 0=off (on the game thread), 1=on (default1)\nfifo_thread=1\n# Core of that thread: 3=spare New 3DS core (default3), 1=shared system core\nfifo_core=3\n" "# Core-2 staging waits only when the real heap is short: 0=estimate, 1=real heap (default1)\nheap_fence=1\n" "# Direct SDK register delivery, inline FIFO and CPU recorder only (experimental)\ntyped_gx=0\n# Exact direct texture encoding, 0=reference host upload, 1=default\ndirect_texture=1\n# Experimental bounded TEV/texgen vector-capacity reuse\nstate_pool=0\n# Experimental FIFO geometry-capacity reuse, same memory budget\nvertex_pool_fifo=0\n# GPU plan diagnostic text: 1=reference, 0=omit unread notes (effects unchanged)\nplan_notes=0\n# Experimental direct packing into the existing GPU arena\ndirect_pack=0\n# Adjacent matrix-palette grouping: 0=off, 1=on (default)\nmatrix_batch=1\n# Reuse unchanged geometry: 0=off, 1=on (default)\nretain_geometry=1\n# Reuse validated GPU commands: 0=off, 1=on (default)\ndraw_replay=1\n# Reuse matching draw plans: 0=off, 1=on (default)\nplan_delta=1\n# Pace from measured frame cost: 0=off, 1=on (default)\npaint_fractional=1\n# Audio thread on core 1: 0=off, 1=on (default)\naudio_core1=1\n# Top screen: 0=original 4:3, 1=full width (default)\nwidescreen=1\n# Bottom screen: 0=blank, 1=chart. Live map stays off.\nbottom_ui=1\nui_map_bottom=0\n# Skip fully offscreen meshes: 0=off (default), 1=on\nrigid_clip=0\n# Use a prepared texture pack when one is on the card: 0=always convert while playing, 1=default\ntexture_pack=1\ntexture_shards=1\n# Frame counter: 0=off, 1=on (default)\nframe_counter=1\n# Experimental bounded immutable GPU plan templates\nplan_templates=0\n# Experimental fully-overwritten decoded scalar buffers\ndecode_overwrite=0\n# Top HUD uses the full 400px width (hearts/buttons/rupees larger, in the corners): 0=original, 1=on (default1)\ntop_hud=1\n";
+        return "# Fidelity-preserving optimizations only. Restart after editing.\n# Tree/grass draw distance in game units (default 1500). Islands/horizon unchanged. 3000=farther, 1200=more pop-in.\nfoliage_far=1500\n# Real shadows: 0=off (faster, default), 1=on\nreal_shadows=0\n# Core-2 rendering: 0=off, 1=on (default)\ncore2=1\n# Exact decoded-geometry reuse, bounded 3MiB: 0=off, 1=on (default)\ngeometry_cache=1\n# Exact pre-decode primitive coalescing: 0=off, 1=on (default)\nvertex_runs=1\n# Exact consecutive-material cache shortcut: 0=off, 1=on\nmaterial_cache=1\n# Reusable draw plans: 0=off, 1=on (default)\nplan_reuse=1\n# Fixed uniform storage: 0=off, 1=on (default)\npacked_uniforms=1\n# Identical fog preparation: 0=off, 1=on (default)\nfog_prepare=1\n# Cached vertex-decode recipes: 0=off, 1=on\nvertex_plan=1\n# Specialized exact attribute loops: 0=off, 1=on\nvertex_decode=1\n# Exact palette hash memo: 0=off, 1=on\npalette_cache=1\n# Bottom status panel: 0=blank, 1=panel\nbottom_ui=1\n# Detailed GPU timings: 0=logged frames only, 1=every frame\ndraw_timing=0\n" "# Bounded core2 staging: 0=2MiB, 1=8MiB (default1)\npipeline_stage8=1\n" "# Full-width widescreen culling correction: 0=reference, 1=on\nwide_cull=1\n" "# Secondary threads (audio, loading) on core 1: 0=off, 1=on (default1)\ncore1_threads=1\n" "# GX command translation on its own thread: 0=off (on the game thread), 1=on (default1)\nfifo_thread=1\n# Core of that thread: 3=spare New 3DS core (default3), 1=shared system core\nfifo_core=3\n" "# Parallel vertex decode on another core (same pixels): 0=off, 1=on (default1). Needs fifo_thread=1. Falls back off if the thread will not start.\ndecode_helper=1\n# Core for that helper: 1=system core (default), 0=main. Never use the fifo or render core.\ndecode_core=1\n" "# Core-2 staging waits only when the real heap is short: 0=estimate, 1=real heap (default1)\nheap_fence=1\n" "# Direct SDK register delivery, inline FIFO and CPU recorder only (experimental)\ntyped_gx=0\n# Exact direct texture encoding, 0=reference host upload, 1=default\ndirect_texture=1\n# Experimental bounded TEV/texgen vector-capacity reuse\nstate_pool=0\n# Experimental FIFO geometry-capacity reuse, same memory budget\nvertex_pool_fifo=0\n# GPU plan diagnostic text: 1=reference, 0=omit unread notes (effects unchanged)\nplan_notes=0\n# Experimental direct packing into the existing GPU arena\ndirect_pack=0\n# Adjacent matrix-palette grouping: 0=off, 1=on (default)\nmatrix_batch=1\n# Reuse unchanged geometry: 0=off, 1=on (default)\nretain_geometry=1\n# Reuse validated GPU commands: 0=off, 1=on (default)\ndraw_replay=1\n# Reuse matching draw plans: 0=off, 1=on (default)\nplan_delta=1\n# Pace from measured frame cost: 0=off, 1=on (default)\npaint_fractional=1\n# Audio thread on core 1: 0=off, 1=on (default)\naudio_core1=1\n# Top screen: 0=original 4:3, 1=full width (default)\nwidescreen=1\n# Bottom screen: 0=blank, 1=chart. Live map stays off.\nbottom_ui=1\nui_map_bottom=0\n# Skip fully offscreen meshes: 0=off, 1=on (default)\nrigid_clip=1\n# Use a prepared texture pack when one is on the card: 0=always convert while playing, 1=default\ntexture_pack=1\ntexture_shards=1\n# Frame counter: 0=off, 1=on (default)\nframe_counter=1\n# Experimental bounded immutable GPU plan templates\nplan_templates=0\n# Experimental fully-overwritten decoded scalar buffers\ndecode_overwrite=0\n# Top HUD uses the full 400px width (hearts/buttons/rupees larger, in the corners): 0=original, 1=on (default1)\ntop_hud=1\n";
         
     }
     

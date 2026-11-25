@@ -413,8 +413,8 @@ bool diagnostics)
                 const C3dUnit& U = L.units[u];
                 if (!U.enabled || P.units[u].scratch) continue;
                 const float es = U.entry->tex.scaleS, et = U.entry->tex.scaleT;
-                if (std::fabs(es - P.units[u].scaleS) < 1e - 6f 
-&& std::fabs(et - P.units[u].scaleT) < 1e - 6f) continue;
+                if (std::fabs(es - P.units[u].scaleS) < 1e-6f 
+&& std::fabs(et - P.units[u].scaleT) < 1e-6f) continue;
                 const int slot = P.pica().vs.texScaleSlot[u];
                 C3dUniform * tu = nullptr;
                 for (C3dUniform& cu : L.uniforms) if ( * cu.name == "texScale") tu = &cu;

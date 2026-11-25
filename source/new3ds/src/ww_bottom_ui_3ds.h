@@ -33,6 +33,10 @@ class BottomUi3ds
     {
         
     } ;
+    void * panelFb_[2] = 
+    {
+        
+    } ;
     n3ds_panel::State colState_
     {
         
@@ -56,8 +60,19 @@ sizeof s.fpsText);
         return s;
         
     }
+    void rememberPanelFb(void * p)
+    {
+        if(!p)return;
+        if(panelFb_[0] == p || panelFb_[1] == p)return;
+        if(!panelFb_[0])panelFb_[0] = p;
+        else if(!panelFb_[1])panelFb_[1] = p;
+        else panelFb_[0] = p;
+        
+    }
     void paint(const n3ds_panel::State& s)
     {
+        // Wait so a still-running display transfer cannot leave a null destination.
+        C3Di_RenderQueueWaitDone();
         u16 w = 0, h = 0;
         auto * p = gfxGetFramebuffer(GFX_BOTTOM,
 GFX_LEFT,
@@ -67,9 +82,23 @@ GFX_LEFT,
         n3ds_panel::compose(shadow_,
 kBottomUiTexture,
 s);
+        rememberPanelFb(p);
         std::memcpy(p,
 shadow_,
 sizeof shadow_);
+        GSPGPU_FlushDataCache(p,
+u32(w) * h * 2);
+        // Keep the other double-buffer slot in sync so a swap never flashes blank.
+        for(void * o:panelFb_)
+        {
+            if(!o || o == p)continue;
+            std::memcpy(o,
+shadow_,
+sizeof shadow_);
+            GSPGPU_FlushDataCache(o,
+u32(w) * h * 2);
+            
+        }
         shown_ = s;
         painted_ = true;
         dirty_ = true;
@@ -78,6 +107,7 @@ sizeof shadow_);
     public:
     void init()
     {
+        C3Di_RenderQueueWaitDone();
         u16 w = 0, h = 0;
         auto * p = gfxGetFramebuffer(GFX_BOTTOM,
 GFX_LEFT,
@@ -86,9 +116,14 @@ GFX_LEFT,
         if(p 
 && w == 240 
 && h == 320 
-&& !n3ds_ui::gpuOwnsBottom.load(std::memory_order_acquire))std::memset(p,
+&& !n3ds_ui::gpuOwnsBottom.load(std::memory_order_acquire))
+        {
+            std::memset(p,
 0,
 size_t(w) * h * 2);
+            rememberPanelFb(p);
+            
+        }
         painted_ = false;
         dirty_ = true;
         colValid_ = false;
@@ -100,6 +135,7 @@ size_t(w) * h * 2);
         painted_ = false;
         colValid_ = false;
         colFb_[0] = colFb_[1] = nullptr;
+        panelFb_[0] = panelFb_[1] = nullptr;
         
     }
     void update(unsigned long,
@@ -125,6 +161,7 @@ ms > 0?1000.0 / ms:0.0);
             }
             else
             {
+                C3Di_RenderQueueWaitDone();
                 u16 w = 0, h = 0;
                 auto * p = gfxGetFramebuffer(GFX_BOTTOM,
 GFX_LEFT,
@@ -135,6 +172,7 @@ GFX_LEFT,
 && h == 320 
 && n3ds_intro::blit(reinterpret_cast < uint16_t * > (p)))
                 {
+                    rememberPanelFb(p);
                     dirty_ = true;
                     painted_ = false;
                     return;

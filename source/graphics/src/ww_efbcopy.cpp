@@ -620,7 +620,7 @@ gxH);
                     T.notes.push_back("picture kept at the port's resolution (" + std::to_string(portW) + "x" + std::to_string(portH) + " texels for a " + std::to_string(gxW) + "x" + std::to_string(gxH) + " GX image)");
                     auto aligned = [](double v) 
                     {
-                        return std::fabs(v - std::floor(v + 0.5)) < 1e - 6;
+                        return std::fabs(v - std::floor(v + 0.5)) < 1e-6;
                         
                     } ;
                     if (!aligned(lx0) || !aligned(ly0) || !aligned(lx1 - lx0) || !aligned(ly1 - ly0))
@@ -815,9 +815,9 @@ wMode ? depthMapW(opt.frameFogRange) : depthMapZ());
                 {
                     const double zn = double(c.clearZ) / 16777215.0;
                     const double w = wMode ? std::max(zn,
-1e - 3) * double(opt.frameFogRange) : 1.0;
+1e-3) * double(opt.frameFogRange) : 1.0;
                     if (wMode 
-&& zn < 1e - 3) R.notes.push_back("copy-clear depth below 1/1000 of the W-buffer range is written as 1/1000");
+&& zn < 1e-3) R.notes.push_back("copy-clear depth below 1/1000 of the W-buffer range is written as 1/1000");
                     if (wMode) R.notes.push_back("copy-clear in a W-buffer frame: the clear depth is read as a fraction of the fog range");
                     const float rgba[4] = 
                     {

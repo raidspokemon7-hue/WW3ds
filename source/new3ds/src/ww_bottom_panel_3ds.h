@@ -709,17 +709,17 @@ const State& s)
 0,
 320 - kGpuRows,
 240,
-0x3e2a16);
+0x5c371c);
         c.rect(kGpuRows + 3,
 0,
 320 - kGpuRows - 3,
 240,
-0x16382e);
+0x123f4c);
         c.rect(kGpuRows,
 0,
 3,
 240,
-0xc4a15a);
+0x8a5a22);
         static const char * keys[3] = 
         {
             "X", "Y", "Z"
@@ -847,7 +847,7 @@ t);
 0,
 w + 8,
 18,
-0x14240a);
+0x123f4c);
         c.text(4,
 0,
 t,
@@ -863,12 +863,12 @@ const State& s)
 y,
 kGpuRows,
 1,
-0xc6ff33);
+0x1b72ad);
         c.rect(6,
 22,
 kGpuRows - 12,
 194,
-0xf3ddb4);
+0xf4e2b0);
         c.rect(48,
 34,
 kGpuRows - 96,
@@ -908,6 +908,12 @@ cy,
 kGpuRows - 56,
 1,
 0xc9893a);
+        centerMid(c,
+10,
+172,
+kGpuRows - 20,
+"FPS Cap",
+0x3a2712);
         const bool cap24 = s.fpsCap == 24, cap60 = s.fpsCap == 60;
         button(c,
 kFpsCap24,
@@ -940,12 +946,6 @@ kFpsCap60.x,
 kFpsCap60.y + kFpsCap60.h / 2 - 1 + (cap60?1:0),
 kFpsCap60.w,
 "60",
-0x3a2712);
-        centerMid(c,
-kFpsCap60.x,
-kFpsCap60.y + kFpsCap60.h + 8,
-kFpsCap60.w,
-"2x speed",
 0x3a2712);
         
     }

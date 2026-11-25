@@ -44,7 +44,7 @@ namespace t2p
             return double(ticks) * 1000.0 / double(SYSCLOCK_ARM11);
             
         }
-        constexpr uint32_t kRouteClear = 0x10183000u;
+        constexpr uint32_t kRouteClear = 0xF4E2B0FFu;   // opaque parchment behind the live map
         
     }
     bool Renderer3ds::init(const RendererOptions& o,
@@ -782,10 +782,17 @@ states.size());
 && xfb 
 && evs_[n - 1].c.clear;
         skipNext_ = false;
+        if (dialogueHoldFrames_ > 0) 
+        {
+            keepPicture_ = true;
+            --dialogueHoldFrames_;
+            
+        }
         const bool keepPicture = keepPicture_;
         keepPicture_ = false;
         size_t runUntil = n;
-        if (skip) 
+        if (skip 
+&& !keepPicture) 
         {
             runUntil = 0;
             for (size_t i = 0; i < n; i++) if (evs_[i].kind == Ev::TexCopy) runUntil = i + 1;
@@ -899,9 +906,10 @@ replayLimit,
         if (cacheVerifiedHook_) cacheVerifiedHook_();
         R3T("cache.beginFrame",
 0);
-        if (keepPicture 
-&& !skip) 
+        if (keepPicture) 
         {
+            // Depth-only clear even on skipped paints so dialogue hold never
+            // flashes a full black CLEAR_ALL under frame pacing.
             C3D_RenderTargetClear(target_,
 C3D_CLEAR_DEPTH,
 0,
@@ -922,7 +930,7 @@ picaFrameClearDepth());
         {
             C3D_RenderTargetClear(routeTarget_,
 C3D_CLEAR_ALL,
-routeEvents?kRouteClear:0,
+kRouteClear,
 picaFrameClearDepth());
             C3D_FrameDrawOn(routeTarget_);
             
@@ -2017,13 +2025,13 @@ FrameConfig& cfg) const
         {
             const float x = float(r.src[0]) + (k ? float(r.src[2]) : 0.0f), y = float(r.src[1]) + (k ? float(r.src[3]) : 0.0f);
             const float cx = P[0][0] * x + P[0][1] * y + P[0][3], cy = P[1][0] * x + P[1][1] * y + P[1][3], w = P[3][0] * x + P[3][1] * y + P[3][3];
-            if (!(std::fabs(w) > 1e - 6f)) return false;
+            if (!(std::fabs(w) > 1e-6f)) return false;
             ex[k] = V.x + V.width * 0.5f * (1.0f + cx / w);
             ey[k] = V.y + V.height * 0.5f * (1.0f - cy / w);
             
         }
         const float eW = ex[1] - ex[0], eH = ey[1] - ey[0];
-        if (!(std::fabs(eW) > 1e - 3f) || !(std::fabs(eH) > 1e - 3f)) return false;
+        if (!(std::fabs(eW) > 1e-3f) || !(std::fabs(eH) > 1e-3f)) return false;
         cfg = opt_.frame;
         cfg.targetW = 320;
         cfg.targetH = 240;

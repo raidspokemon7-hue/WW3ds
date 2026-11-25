@@ -3,6 +3,8 @@
 #include <atomic>
 #include <cstdlib>
 #include <cstdio>
+#include "ww_n3ds.h"
+#include "ww_n3ds.h"
 #include "ww_ui_shortcuts_3ds.h"
 #include "ww_ui_shortcut_config_3ds.h"
 #include "ww_ui_lifecycle_3ds.h"
@@ -219,7 +221,7 @@ extern "C" int n3dsUiLoadShortcuts(void)
     if(!loaded)
     {
         loaded = true;
-        result = n3ds_ui::shortcuts.load("sdmc:/ww3ds/shortcuts.ini");
+        result = n3ds_ui::shortcuts.load(N3DS_ROOT "/shortcuts.ini");
         if(result == 0)
         {
             n3ds_ui::invalidated.fetch_or(n3ds_ui::allActions,
@@ -263,7 +265,7 @@ uint32_t blocked)
 drawn,
 usable,
 blocked);
-    n3ds_ui::presentationWord.store(next.word,
+    n3ds_ui::presentationWord.store(next.packed,
 std::memory_order_release);
     const auto old = n3ds_ui::presentationMask.exchange(next.usable(),
 std::memory_order_acq_rel);

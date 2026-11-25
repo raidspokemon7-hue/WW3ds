@@ -453,7 +453,7 @@ bs - 24);
             }
             double fn = n;
             const double Bexp = f / (f - n);
-            if (std::fabs(B / Bexp - 1.0) > 1e - 5) 
+            if (std::fabs(B / Bexp - 1.0) > 1e-5) 
             {
                 fn = f * (B - 1.0) / B;
                 

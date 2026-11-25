@@ -36,7 +36,7 @@ int(ready),
 !config.commandThread,
 int(config.keepGeometry),
 int(config.cacheGeometry),
-config.errors);
+config.rejectedLines);
         
     }
     void n3dsTypedUnregisterFifo(void * fifo) 

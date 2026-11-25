@@ -15,7 +15,8 @@ for e in cc:
     args = shlex.split(e['command'])
     cxx = args[0].endswith('++')
     D = '/opt/devkitpro/devkitARM/arm-none-eabi/include'
-    na = ['clang++' if cxx else 'clang', '--target=armv6k-none-eabihf', '-mcpu=mpcore', '-mfloat-abi=hard', '-mfpu=vfpv2', '-mtp=soft', '-nostdlibinc', '-D__3DS__', '-D_GNU_SOURCE'] + (['-DCOS_RUNTIME_ASSETS=1'] if public else [])
+    # Stub asset headers (build/assets) always call cos_asset_fill; need the runtime filler linked.
+    na = ['clang++' if cxx else 'clang', '--target=armv6k-none-eabihf', '-mcpu=mpcore', '-mfloat-abi=hard', '-mfpu=vfpv2', '-mtp=soft', '-nostdlibinc', '-D__3DS__', '-D_GNU_SOURCE', '-DCOS_RUNTIME_ASSETS=1']
     if cxx: na += ['-isystem', D + '/c++/16.1.0', '-isystem', D + '/c++/16.1.0/arm-none-eabi/armv6k/fpu', '-isystem', D + '/c++/16.1.0/backward']
     na += ['-isystem', D, '-isystem', '/opt/devkitpro/libctru/include', '-idirafter', '/opt/devkitpro/portlibs/3ds/include', '-include', '/work/native/include/pc/cos_3ds_config.h']
     skip = False

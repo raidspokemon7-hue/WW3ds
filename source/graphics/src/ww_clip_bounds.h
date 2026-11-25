@@ -45,7 +45,7 @@ namespace t2p
             
         } ;
         bool valid = false;
-        static constexpr float roundoff = 1.0f / 1024.0f, absolute = 1e - 6f;
+        static constexpr float roundoff = 1.0f / 1024.0f, absolute = 1e-6f;
         bool update(const float m[3][4],
 const float p[4][4]) 
         {

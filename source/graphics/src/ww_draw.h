@@ -124,22 +124,13 @@ namespace t2p
         
     } ;
     PicaDraw compileDraw(const GxDrawState&,
-const Options&= 
-    {
-        
-    }
+const Options& = {}
     );
     PicaDraw compileDrawSingle(const GxDrawState&,
-const Options&= 
-    {
-        
-    }
+const Options& = {}
     );
     PicaDraw compileDrawExact(const GxDrawState&,
-const Options&= 
-    {
-        
-    }
+const Options& = {}
     );
     float frameFogRange(const GxDrawState * draws,
 size_t n);

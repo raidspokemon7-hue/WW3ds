@@ -1241,6 +1241,7 @@ j.fastAttr)) q->arrayError.store(true);
         DecodeQueue * q = deferQ_.get();
         if (!q) return;
         if (q->done.load() != q->published.load()) deferredDrains_++;
+        if (q->wake) q->wake();
         while (runDecodeJob()) 
         {
             deferredSelf_++;
@@ -1249,6 +1250,11 @@ j.fastAttr)) q->arrayError.store(true);
         }
         while (q->done.load() != q->published.load()) 
         {
+            if (q->wake) q->wake();
+            #ifdef __3DS__
+            // Yield so a same-core helper can finish; a bare spin deadlocks it.
+            svcSleepThread(0);
+            #endif
             
         }
         q->arenaUsed = 0;

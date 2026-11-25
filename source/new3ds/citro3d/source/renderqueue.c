@@ -461,6 +461,7 @@ void C3D_RenderTargetSetOutput(C3D_RenderTarget* target, gfxScreen_t screen, gfx
 
 static void C3Di_SafeDisplayTransfer(u32* inadr, u32 indim, u32* outadr, u32 outdim, u32 flags)
 {
+	if (!inadr || !outadr) return;
 	C3Di_WaitAndClearQueue(-1);
 	inSafeTransfer = true;
 	GX_DisplayTransfer(inadr, indim, outadr, outdim, flags);
@@ -485,6 +486,7 @@ static void C3Di_SafeMemoryFill(u32* buf0a, u32 buf0v, u32* buf0e, u16 control0,
 
 void C3D_SyncDisplayTransfer(u32* inadr, u32 indim, u32* outadr, u32 outdim, u32 flags)
 {
+	if (!inadr || !outadr) return;
 	if (inFrame)
 	{
 		C3D_FrameSplit(0);

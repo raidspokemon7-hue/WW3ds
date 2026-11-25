@@ -107,10 +107,7 @@ size_t) > ;
     PicaTexture chooseFormat(const std::vector < uint8_t > & rgba,
 int w,
 int h,
-const TexConvOptions&= 
-    {
-        
-    }
+const TexConvOptions& = {}
     );
     struct MipImage 
     {
@@ -128,10 +125,7 @@ int y) const
         
     } ;
     PicaTexture chooseFormatLevels(const std::vector < MipImage > & levels,
-const TexConvOptions&= 
-    {
-        
-    }
+const TexConvOptions& = {}
     );
     
 }

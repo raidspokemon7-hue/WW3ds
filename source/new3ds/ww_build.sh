@@ -195,7 +195,7 @@ EOF3
   for f in ww_fifo_3ds.cpp ww_GXFrameBuffer_3ds.cpp ww_dvd_3ds.cpp; do cmp -s gen/$f.new gen/$f || mv gen/$f.new gen/$f; rm -f gen/$f.new; done
 fi
 
-podman run --rm --memory=3g --memory-swap=3g --cpus=4 -e N3DS_RENDER_OPT -e N3DS_RENDER_LTO -e N3DS_PGO -e N3DS_GAME_FLAGS -e N3DS_GX_INLINE -e SOURCE_DATE_EPOCH -e N3DS_EVENT_INDIRECT -v "$SW:/work:z" -v "$here:/arm:z" "${PUBMOUNTS[@]}" -v "$HW6:/hw6:z" localhost/ww3ds-clang bash -c '
+podman run --rm --memory=3g --memory-swap=3g --cpus=4 -e N3DS_RENDER_OPT -e N3DS_RENDER_LTO -e N3DS_PGO -e N3DS_GAME_FLAGS -e N3DS_GX_INLINE -e SOURCE_DATE_EPOCH -e N3DS_EVENT_INDIRECT -v "$SW:/work:z" -v "$here:/arm:z" ${PUBMOUNTS[@]+"${PUBMOUNTS[@]}"} -v "$HW6:/hw6:z" localhost/ww3ds-clang bash -c '
 set -e
 mode='"$mode"'
 export DEVKITPRO=/opt/devkitpro DEVKITARM=/opt/devkitpro/devkitARM

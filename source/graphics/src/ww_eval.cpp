@@ -15,7 +15,7 @@ namespace t2p
     }
     float snap8(float x) 
     {
-        return std::floor(x * 255.0f + 0.5f + 1e - 4f) / 255.0f;
+        return std::floor(x * 255.0f + 0.5f + 1e-4f) / 255.0f;
         
     }
     LeafTable buildLeaves(const Rgba regs[4],

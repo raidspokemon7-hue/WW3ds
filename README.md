@@ -8,11 +8,11 @@
 
 ## Download
 
-[WW3ds-sd.zip](https://github.com/raidspokemon7-hue/WW3ds/releases/download/v1.1/WW3ds-sd.zip)
+[WW3ds-sd.zip](https://github.com/raidspokemon7-hue/WW3ds/releases/download/v1.2/WW3ds-sd.zip)
 
 Unzip onto the SD card. Install `cia/ww3ds.cia` with FBI. Put your own GZLE01.iso in `3ds/ww3ds/game/`.
 
-This pack ships `performance.ini` with `foliage_far=2000` and `real_shadows=0` for better frame rate. Edit that file and restart to tune it.
+This pack ships `performance.ini` with `foliage_far=1500`, `real_shadows=0`, and `decode_helper=1` for better frame rate. Edit that file and restart to tune it.
 
 ## What you need
 
@@ -50,7 +50,7 @@ The starting island is the hardest place to run. Bringing a save that has alread
 
 ## First boot
 
-The first time you launch the game, both screens show **Preparing Wind Waker** and the buttons do nothing. The game is building the caches it needs while the title screen runs offscreen. When that settles, the title appears. If it has not settled after 90 seconds, the title opens anyway.
+The first time you launch the game, both screens show **Preparing Wind Waker** with a percent bar and the buttons do nothing. The game is building graphics caches while the title runs offscreen. The bar only moves forward and reaches 100% when that warm-up is ready (or after 90 seconds). Then the title appears.
 
 Later launches skip that screen. The first visit to a new area can still hitch while new graphics are prepared. It gets smoother as you keep playing.
 

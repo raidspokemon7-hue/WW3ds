@@ -351,14 +351,14 @@ inv == 1
                             
                         }
                         double cutoff = out.sols.empty() ? std::max(out.bestErr,
-2e - 4) : 2e - 4;
+2e-4) : 2e-4;
                         double e = stepErr(s,
 alpha,
 smp,
 exp,
 cutoff);
                         if (e > cutoff) continue;
-                        if (e <= 2e - 4) 
+                        if (e <= 2e-4) 
                         {
                             if (feasible(s,
 alpha,
@@ -679,7 +679,7 @@ a,
 1,
 false);
                         if (i 
-&& std::fabs(smpB[i][L_MID].v[0] - smpB[0][L_MID].v[0]) > 1e - 6f) trivial = false;
+&& std::fabs(smpB[i][L_MID].v[0] - smpB[0][L_MID].v[0]) > 1e-6f) trivial = false;
                         
                     }
                     if (trivial) continue;
@@ -1019,7 +1019,7 @@ smp[i]) ? 1.0f : 0.0f;
                     const V3 want = evalTevChan(ch,
 smp[i]), got = evalTevChan(v,
 smpB[i]);
-                    for (int k = 0; k < 3; k++) if (std::fabs(want.v[k] - got.v[k]) > 1e - 6f) 
+                    for (int k = 0; k < 3; k++) if (std::fabs(want.v[k] - got.v[k]) > 1e-6f) 
                     {
                         res.note = "compare: internal error, the mask equation differs from the compare";
                         return res;
@@ -1082,7 +1082,7 @@ smp[i]) ? 1.0f : 0.0f;
                 const V3 want = evalTevChan(ch,
 smp[i]), got = evalTevChan(v,
 smpB[i]);
-                for (int k = 0; k < 3; k++) if (std::fabs(want.v[k] - got.v[k]) > 1e - 6f) 
+                for (int k = 0; k < 3; k++) if (std::fabs(want.v[k] - got.v[k]) > 1e-6f) 
                 {
                     res.note = "compare: internal error, the mask equation differs from the compare";
                     return res;

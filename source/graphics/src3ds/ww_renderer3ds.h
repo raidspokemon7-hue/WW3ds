@@ -474,6 +474,7 @@ err);
         void setKeepPicture(bool on) 
         {
             keepPicture_ = on;
+            dialogueHoldFrames_ = on ? 8 : 0;
             
         }
         void setHideOutput(bool on) 
@@ -880,6 +881,7 @@ int) > edit_;
         bool stateInPlace_ = false;
         bool skipNext_ = false;
         bool keepPicture_ = false;
+        int dialogueHoldFrames_ = 0;
         bool hideOutput_ = false;
         GxRetainer retainer_;
         PackedGeometryCache packCache_;

@@ -49,10 +49,7 @@ namespace t2p
         
     } ;
     Translation translate(const TevMaterial&,
-const Options&= 
-    {
-        
-    }
+const Options& = {}
     );
     VerifyResult verify(const TevMaterial&,
 const PicaProgram&,

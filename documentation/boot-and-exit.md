@@ -11,9 +11,10 @@ Long waits during boot now keep pumping APT so the system watchdog stays fed:
 
 Plain GZLE01 ISO and Dolphin CISO are accepted. Paths checked:
 
-- `sdmc:/ww3ds/game/GZLE01.iso` and `GZLE01.ciso`
-- any `.iso` / `.ciso` under `sdmc:/ww3ds/game/`
-- the same names in `sdmc:/ww3ds/`
+- `sdmc:/3ds/ww3ds/game/GZLE01.iso` and `GZLE01.ciso`
+- any `.iso` / `.ciso` under `sdmc:/3ds/ww3ds/game/`
+- the same names in `sdmc:/3ds/ww3ds/`
+- fallback: the same paths under `sdmc:/ww3ds/`
 
 ## Exit
 

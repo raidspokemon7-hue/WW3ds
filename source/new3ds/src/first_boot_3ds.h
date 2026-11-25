@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -12,22 +13,23 @@ extern "C" void C3Di_RenderQueueWaitDone(void);
 namespace n3ds_warm 
 {
     inline constexpr const char * kMarker = N3DS_ROOT "/first-run.done";
-    inline constexpr int kWindow = 60;
-    inline constexpr double kOkAverageMs = 75.0;
-    inline constexpr double kOkWorstMs = 100.0;
-    inline constexpr uint32_t kMinDraws = 20;
+    // Warm targets: percent only reaches 100 after these are met (or timeout).
+    inline constexpr int kNeededGoodFrames = 45;
+    inline constexpr int kNeededActiveFrames = 30;
+    inline constexpr size_t kMinShaders = 8;
+    inline constexpr double kOkFrameMs = 100.0;
     inline constexpr uint64_t kGiveUpSeconds = 90;
     struct State 
     {
         bool covering = false;
         t2p::Renderer3ds * drawTarget = nullptr;
         uint64_t openedTick = 0;
-        double recentMs[kWindow] = 
-        {
-            
-        } ;
-        int sampleCount = 0;
-        int sampleIndex = 0;
+        int percent = 0;
+        int shownPercent = -1;
+        int goodFrames = 0;
+        int activeFrames = 0;
+        int frameIndex = 0;
+        size_t peakShaders = 0;
         
     } ;
     inline State& state() 
@@ -79,31 +81,38 @@ unsigned colour)
                 const int px = x + i, py = y + j;
                 if (px < 0 || py < 0 || px >= wide || py >= stride) continue;
                 uint8_t * p = fb + (size_t(px) * stride + (stride - 1 - py)) * bpp;
+                auto mix = [&](uint8_t dst,
+unsigned src) 
+                {
+                    return uint8_t((src * alpha + dst * (255 - alpha) + 127) / 255);
+                    
+                } ;
                 if (bpp == 2) 
                 {
                     const uint16_t old = uint16_t(p[0] | (p[1] << 8));
-                    const unsigned r = ((old >> 11) * 255 + 15) / 31, gch = (((old >> 5) & 63) * 255 + 31) / 63, b = ((old & 31) * 255 + 15) / 31;
-                    const unsigned nr = (((colour >> 16) & 255) * alpha + r * (255 - alpha) + 127) / 255;
-                    const unsigned ng = (((colour >> 8) & 255) * alpha + gch * (255 - alpha) + 127) / 255;
-                    const unsigned nb = ((colour & 255) * alpha + b * (255 - alpha) + 127) / 255;
-                    const uint16_t out = uint16_t(((nr >> 3) << 11) | ((ng >> 2) << 5) | (nb >> 3));
-                    p[0] = uint8_t(out);
-                    p[1] = uint8_t(out >> 8);
+                    const unsigned or_ = ((old >> 11) & 31) * 255 / 31, og = ((old >> 5) & 63) * 255 / 63, ob = (old & 31) * 255 / 31;
+                    const unsigned nr = mix(uint8_t(or_),
+(colour >> 16) & 255), ng = mix(uint8_t(og),
+(colour >> 8) & 255), nb = mix(uint8_t(ob),
+colour & 255);
+                    const uint16_t px16 = uint16_t(((nr >> 3) << 11) | ((ng >> 2) << 5) | (nb >> 3));
+                    p[0] = uint8_t(px16);
+                    p[1] = uint8_t(px16 >> 8);
                     
                 } else 
                 {
                     const int cr = bgr ? 2 : 0, cb = bgr ? 0 : 2;
-                    auto mix = [&](uint8_t dst,
+                    auto mix8 = [&](uint8_t dst,
 unsigned src) 
                     {
                         return uint8_t((src * alpha + dst * (255 - alpha) + 127) / 255);
                         
                     } ;
-                    p[cr] = mix(p[cr],
+                    p[cr] = mix8(p[cr],
 (colour >> 16) & 255);
-                    p[1] = mix(p[1],
+                    p[1] = mix8(p[1],
 (colour >> 8) & 255);
-                    p[cb] = mix(p[cb],
+                    p[cb] = mix8(p[cb],
 colour & 255);
                     
                 }
@@ -144,7 +153,7 @@ bpp);
     inline void paint(gfxScreen_t screen,
 const char * title,
 const char * line,
-int settled) 
+int percent) 
     {
         u16 stride = 0, wide = 0;
         auto * fb = static_cast < uint8_t * > (gfxGetFramebuffer(screen,
@@ -195,12 +204,13 @@ once,
 0xe8ffe0);
         const int barW = wide > 280 ? 220 : 160;
         const int barX = (wide - barW) / 2, barY = y0 + 84;
+        const int clamped = percent < 0 ? 0 : percent > 100 ? 100 : percent;
         for (int y = barY; y < barY + 8 
 && y < stride; ++y)
         for (int x = barX; x < barX + barW 
 && x < wide; ++x) 
         {
-            const bool on = (x - barX) * kWindow < settled * barW;
+            const bool on = (x - barX) * 100 < clamped * barW;
             uint8_t * p = fb + (size_t(x) * stride + (stride - 1 - y)) * bpp;
             const unsigned colour = on ? 0xc6ff6a : 0x145022;
             if (bpp == 2) 
@@ -218,6 +228,20 @@ once,
             }
             
         }
+        char pct[16];
+        std::snprintf(pct,
+sizeof pct,
+"%d%%",
+clamped);
+        glyph(fb,
+stride,
+bpp,
+bgr,
+wide,
+(wide - textWidth(pct)) / 2,
+barY + 14,
+pct,
+0xf4ffe8);
         const char * thanks = "thx for playing";
         glyph(fb,
 stride,
@@ -225,62 +249,82 @@ bpp,
 bgr,
 wide,
 (wide - textWidth(thanks)) / 2,
-barY + 14,
+barY + 34,
 thanks,
 0xf4ffe8);
         GSPGPU_FlushDataCache(fb,
 u32(stride) * wide * bpp);
         
     }
-    inline void present(int settled) 
+    // Cover paint must not WaitDone/swap every frame: that serializes core-2
+    // rendering (sub-1 FPS) and races GX display transfers (FAR 0 writes).
+    inline bool present(int percent,
+bool includeTop,
+bool forceGpuIdle) 
     {
-        // Wait out any pending GX display transfer before CPU-painting the
-        // same framebuffers. Racing C3D's FrameEnd transfer caused flicker
-        // and ARM11 null-destination writes on the render core.
-        C3Di_RenderQueueWaitDone();
+        if (!forceGpuIdle 
+&& n3dsRenderThreadBusy()) return false;
+        if (forceGpuIdle) C3Di_RenderQueueWaitDone();
         char line[64];
-        const size_t shaders = state().drawTarget ? state().drawTarget->shaders().size() : 0;
         std::snprintf(line,
 sizeof line,
-"Loading graphics  %zu",
-shaders);
-        paint(GFX_TOP,
+"Building graphics cache");
+        if (includeTop) 
+        {
+            paint(GFX_TOP,
 "Preparing Wind Waker",
 line,
-settled);
+percent);
+            gfxFlushBuffers();
+            gfxScreenSwapBuffers(GFX_TOP,
+false);
+            
+        }
         paint(GFX_BOTTOM,
 "Preparing Wind Waker",
 line,
-settled);
+percent);
         gfxFlushBuffers();
-        gfxSwapBuffers();
-        gspWaitForVBlank();
+        gfxScreenSwapBuffers(GFX_BOTTOM,
+false);
+        return true;
         
     }
-    inline int settledCount() 
+    // Raw completion score from warm work. Never used to lower the shown %.
+    inline int computePercent(const State& s) 
     {
-        State& s = state();
-        const int count = s.sampleCount < kWindow ? s.sampleCount : kWindow;
-        if (!count) return 0;
-        int ok = 0;
-        double sum = 0, worst = 0;
-        for (int i = 0; i < count; ++i) 
+        const int shaderPart = int(std::min < size_t > (s.peakShaders,
+kMinShaders) * 35 / kMinShaders);
+        const int goodPart = std::min(s.goodFrames,
+kNeededGoodFrames) * 40 / kNeededGoodFrames;
+        const int activePart = std::min(s.activeFrames,
+kNeededActiveFrames) * 20 / kNeededActiveFrames;
+        int timePart = 0;
+        if (s.openedTick) 
         {
-            const double ms = s.recentMs[i];
-            sum += ms;
-            if (ms > worst) worst = ms;
-            if (ms <= kOkWorstMs) ++ok;
+            const uint64_t elapsed = svcGetSystemTick() - s.openedTick;
+            const uint64_t soft = 50ull * SYSCLOCK_ARM11;
+            timePart = int(std::min(elapsed,
+soft) * 5 / soft);
             
         }
-        if (count >= kWindow 
-&& worst <= kOkWorstMs 
-&& sum / count <= kOkAverageMs) return kWindow;
-        return ok;
+        int total = shaderPart + goodPart + activePart + timePart;
+        if (total > 99) total = 99;
+        // Cap at 99 until every hard target is met so 100% means ready.
+        if (s.goodFrames >= kNeededGoodFrames 
+&& s.activeFrames >= kNeededActiveFrames 
+&& s.peakShaders >= kMinShaders) total = 100;
+        return total;
         
     }
     inline void finish(bool timedOut) 
     {
         State& s = state();
+        s.percent = 100;
+        present(100,
+true,
+true);
+        s.shownPercent = 100;
         if (FILE * f = std::fopen(kMarker,
 "w")) 
         {
@@ -295,8 +339,12 @@ f);
 std::memory_order_release);
         s.covering = false;
         n3dsSetBootStage("title");
-        n3dsLog("[warm] first-run loading %s\n",
-timedOut ? "gave up after 90s and opened the menu" : "settled, opening the menu");
+        n3dsLog("[warm] first-run loading %s (%d%% shaders=%zu good=%d active=%d)\n",
+timedOut ? "gave up after 90s and opened the menu" : "ready, opening the menu",
+s.percent,
+s.peakShaders,
+s.goodFrames,
+s.activeFrames);
         
     }
     inline void begin(t2p::Renderer3ds& output) 
@@ -320,12 +368,22 @@ timedOut ? "gave up after 90s and opened the menu" : "settled, opening the menu"
         s.drawTarget = &output;
         s.covering = true;
         s.openedTick = svcGetSystemTick();
+        s.percent = 0;
+        s.shownPercent = -1;
+        s.goodFrames = 0;
+        s.activeFrames = 0;
+        s.frameIndex = 0;
+        s.peakShaders = 0;
         g_lockControls.store(true,
 std::memory_order_release);
         output.setHideOutput(true);
-        present(0);
+        // First cover only: GPU is idle here. Later updates skip WaitDone.
+        present(0,
+true,
+true);
+        s.shownPercent = 0;
         n3dsSetBootStage("warm");
-        n3dsLog("[warm] first launch, covering the menu until it is running smoothly\n");
+        n3dsLog("[warm] first launch, covering until graphics cache is ready\n");
         
     }
     inline void afterFrame(t2p::Renderer3ds& output,
@@ -335,23 +393,33 @@ uint32_t draws)
         State& s = state();
         if (!s.covering) return;
         s.drawTarget = &output;
-        if (draws >= kMinDraws 
+        // Keep the offscreen RT detached so FrameEnd never transfers into a
+        // framebuffer we are also CPU-painting for the % bar.
+        output.setHideOutput(true);
+        ++s.frameIndex;
+        const size_t shaders = output.shaders().size();
+        if (shaders > s.peakShaders) s.peakShaders = shaders;
+        if (draws >= 20) ++s.activeFrames;
+        if (draws >= 20 
 && presentMs > 0.0 
-&& presentMs < 5000.0) 
-        {
-            s.recentMs[s.sampleIndex] = presentMs;
-            s.sampleIndex = (s.sampleIndex + 1) % kWindow;
-            if (s.sampleCount < kWindow) ++s.sampleCount;
-            
-        }
-        const int settled = settledCount();
-        const bool smooth = s.sampleCount >= kWindow 
-&& settled == kWindow;
+&& presentMs <= kOkFrameMs) ++s.goodFrames;
+        const int next = computePercent(s);
+        if (next > s.percent) s.percent = next;
         const bool giveUp = s.openedTick 
 && svcGetSystemTick() - s.openedTick > kGiveUpSeconds * SYSCLOCK_ARM11;
-        if (smooth || giveUp) finish(giveUp 
-&& !smooth);
-        else present(settled);
+        if (s.percent >= 100 || giveUp) 
+        {
+            finish(giveUp 
+&& s.percent < 100);
+            return;
+            
+        }
+        // Only redraw when the percent moves. Never WaitDone here — that was
+        // forcing sub-1 FPS by stalling core-2 every couple of frames.
+        if (s.percent != s.shownPercent 
+&& present(s.percent,
+false,
+false)) s.shownPercent = s.percent;
         
     }
     

@@ -2041,6 +2041,10 @@ size);
     {
         false
     } ;
+    static std::atomic < bool > g_decodeStarted
+    {
+        false
+    } ;
     static t2p::GxFifo * g_decodeFifo = nullptr;
     extern "C++" void JKRPcBeginHostAlloc();
     static void decodeHelperMain(void * ) 
@@ -2048,35 +2052,48 @@ size);
         JKRPcBeginHostAlloc();
         for (;;) 
         {
-            while (g_decodeFifo->runDecodeJob()) 
+            t2p::GxFifo * fifo = g_decodeFifo;
+            if (!fifo) 
+            {
+                LightEvent_Wait(&g_decodeWake);
+                continue;
+                
+            }
+            while (fifo->runDecodeJob()) 
             {
                 
             }
             bool got = false;
             for (int spin = 0; spin < 4000 
-&& !got; spin++) got = g_decodeFifo->runDecodeJob();
+&& !got; spin++) got = fifo->runDecodeJob();
             if (got) continue;
-            g_decodeAsleep.store(true);
-            if (g_decodeFifo->runDecodeJob()) 
+            g_decodeAsleep.store(true,
+std::memory_order_release);
+            if (fifo->runDecodeJob()) 
             {
-                g_decodeAsleep.store(false);
+                g_decodeAsleep.store(false,
+std::memory_order_release);
                 continue;
                 
             }
             LightEvent_Wait(&g_decodeWake);
-            g_decodeAsleep.store(false);
+            g_decodeAsleep.store(false,
+std::memory_order_release);
             
         }
         
     }
     static void decodeHelperWake() 
     {
-        if (g_decodeAsleep.load()) LightEvent_Signal(&g_decodeWake);
+        // Always signal. Checking asleep first can drop a wake between the
+        // empty-queue recheck and Wait, which hangs finishDecodes forever.
+        LightEvent_Signal(&g_decodeWake);
         
     }
     static void startDecodeHelper(t2p::GxFifo& fifo) 
     {
         if (!g_tuning.helperDecode) return;
+        if (g_decodeStarted.load(std::memory_order_acquire)) return;
         if (!g_tuning.commandThread) 
         {
             n3dsLog("[threads] decode_helper needs fifo_thread=1: off\n");
@@ -2096,10 +2113,24 @@ CUR_THREAD_HANDLE);
         if (const char * pv = std::getenv("N3DS_DECODE_PRIO")) prio = s32(std::strtol(pv,
 nullptr,
 0));
+        // Stay off the fifo and render cores so a busy-wait drain cannot starve.
+        if (core == g_tuning.commandCore || core == g_tuning.spareCore) 
+        {
+            n3dsLog("[threads] decode helper: core %d busy with fifo/render, using 0\n",
+core);
+            core = 0;
+            
+        }
         if (core == 1) 
         {
             const Result r = APT_SetAppCpuTimeLimit(80);
-            if (R_FAILED(r)) core = 0;
+            if (R_FAILED(r)) 
+            {
+                n3dsLog("[threads] decode helper: APT core1 limit failed %08lx, using 0\n",
+(unsigned long)r);
+                core = 0;
+                
+            }
             
         }
         Thread t = threadCreate(decodeHelperMain,
@@ -2108,14 +2139,30 @@ nullptr,
 prio,
 core,
 false);
+        if (!t 
+&& core != 0) 
+        {
+            n3dsLog("[threads] decode helper: core %d refused, retrying on 0\n",
+core);
+            core = 0;
+            t = threadCreate(decodeHelperMain,
+nullptr,
+32u << 10,
+prio,
+core,
+false);
+            
+        }
         if (!t) 
         {
             fifo.setDeferredDecode(false);
-            n3dsLog("[threads] decode helper: core %d refused: off\n",
-core);
+            g_decodeFifo = nullptr;
+            n3dsLog("[threads] decode helper: thread create refused: off\n");
             return;
             
         }
+        g_decodeStarted.store(true,
+std::memory_order_release);
         n3dsLog("[threads] decode helper prio 0x%lx on core %d\n",
 (long)prio,
 core);
@@ -2371,7 +2418,10 @@ F.packetMismatches);
         g_lastPresent = presented;
         if (g_r3dsTrace) g_r3dsTrace("end-frame: bottom ui",
 0);
-        if(g_tuning.lowerScreen) g_bottomUi.update((unsigned long)(g_frames.load() + 1),
+        // Skip the bottom panel during first-boot warm; the cover screens own
+        // both displays and the panel only steals CPU from cache building.
+        if(g_tuning.lowerScreen 
+&& !n3ds_warm::covering()) g_bottomUi.update((unsigned long)(g_frames.load() + 1),
 g_presentCount ? g_presentSum / g_presentCount : presentMs);
         n3ds_warm::afterFrame( * g_r,
 presentMs,
@@ -3443,7 +3493,8 @@ extern "C" bool C3Dx_InFrame(void);
     {
         if (g_recorder 
 && g_recorder->current) g_recorder->current->keepPicture = on != 0;
-        else if (g_r) g_r->setKeepPicture(on != 0);
+        // Always latch on the renderer so skipped paints still depth-only clear.
+        if (g_r) g_r->setKeepPicture(on != 0);
         
     }
     extern "C" void n3dsCutsceneHandoff(int entering) 

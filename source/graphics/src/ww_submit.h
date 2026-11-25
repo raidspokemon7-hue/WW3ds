@@ -215,29 +215,17 @@ uint16_t * &) = nullptr;
     } ;
     DrawPacket buildDraw(const GxState&,
 const GxDraw&,
-const Options&= 
-    {
-        
-    }
+const Options& = {}
     ,
-const FrameConfig&= 
-    {
-        
-    }
+const FrameConfig& = {}
     ,
 DrawCompileCache * cache = nullptr);
     void buildDrawInto(DrawPacket& P,
 const GxState&,
 const GxDraw&,
-const Options&= 
-    {
-        
-    }
+const Options& = {}
     ,
-const FrameConfig&= 
-    {
-        
-    }
+const FrameConfig& = {}
     ,
 DrawCompileCache * cache = nullptr,
 bool notes = true,
@@ -245,15 +233,9 @@ bool notes = true,
 uint64_t geoId = 0,
 const PacketGeometryOutput * output = nullptr,
 const matrixbatch::Group * group = nullptr,
-std::shared_ptr < const PicaDraw > compiled = 
-    {
-        
-    }
+std::shared_ptr < const PicaDraw > compiled = {}
     ,
-std::shared_ptr < PackedUniforms > preparedUniforms = 
-    {
-        
-    }
+std::shared_ptr < PackedUniforms > preparedUniforms = {}
     );
     void releasePacked(DrawPacket& P,
 PackedGeometryCache& cache,

@@ -751,7 +751,7 @@ pt.height);
             const VtxOutput o = evalVertex(setup,
 S.uniforms,
 vi);
-            ok[i] = o.clip[3] > 1e - 6f;
+            ok[i] = o.clip[3] > 1e-6f;
             if (!ok[i]) continue;
             const float nx = o.clip[0] / o.clip[3], ny = o.clip[1] / o.clip[3];
             sx[i] = vp.x + vp.width * 0.5f * (1 + nx);
@@ -794,7 +794,7 @@ sy[c]
             }
             )));
             const float area = (sx[b] - sx[a]) * (sy[c] - sy[a]) - (sx[c] - sx[a]) * (sy[b] - sy[a]);
-            if (std::fabs(area) < 1e - 9f) continue;
+            if (std::fabs(area) < 1e-9f) continue;
             for (int y = int(y0); y <= int(y1); y++)
             for (int x = int(x0); x <= int(x1); x++) 
             {

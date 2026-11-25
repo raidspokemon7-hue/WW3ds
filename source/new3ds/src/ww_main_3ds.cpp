@@ -415,6 +415,10 @@ double(t) * 1000.0 / SYSCLOCK_ARM11);
         return n3dsDiscPathKind(path);
         
     } ;
+    mkdir("sdmc:/3ds",
+0777);
+    mkdir(N3DS_ROOT,
+0777);
     mkdir(N3DS_ROOT "/game",
 0777);
     const char * disc = nullptr;
@@ -475,6 +479,9 @@ ent->d_name);
     } ;
     scanDisc(N3DS_ROOT "/game");
     scanDisc(N3DS_ROOT);
+    // Older/local layouts that put the tree at sdmc:/ww3ds instead of sdmc:/3ds/ww3ds.
+    scanDisc("sdmc:/ww3ds/game");
+    scanDisc("sdmc:/ww3ds");
     if (!disc 
 && headerKind("romfs:/GZLE01.iso") == 1) 
     {

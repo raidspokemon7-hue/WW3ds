@@ -52,7 +52,7 @@ float farZ)
     {
         int ceilToInt(double v) 
         {
-            return int(std::ceil(v - 1e - 9));
+            return int(std::ceil(v - 1e-9));
             
         }
         

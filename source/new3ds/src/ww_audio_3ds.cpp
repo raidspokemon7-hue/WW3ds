@@ -227,6 +227,23 @@ sizeof waves);
 false);
     
 }
+extern "C" void n3dsAudioStreamDrop(void)
+{
+    Guard guard;
+    if(!opened)return;
+    // Opening-stream force-drop can free JAI buffers while NDSP still queues
+    // garbage DirectPCM frames; mute and flush before the heap goes away.
+    ndspChnSetPaused(0,
+true);
+    ndspChnWaveBufClear(0);
+    std::memset(waves,
+0,
+sizeof waves);
+    partial = 0;
+    if(!settingsPaused)ndspChnSetPaused(0,
+false);
+    
+}
 extern "C" void n3dsAudioHealth(void)
 {
     unsigned empty, rejected, frames;

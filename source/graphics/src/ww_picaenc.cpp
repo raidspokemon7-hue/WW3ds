@@ -2230,7 +2230,7 @@ int(buf_.size()));
             }
             for (int i = 0; table[i].name; i++)
             if (stricmpEq(table[i].name,
-cmd)) return (this-> * table[i].func)(table[i].opcode,
+cmd)) return (this->*table[i].func)(table[i].opcode,
 table[i].opcodei);
             return throwError("invalid instruction: %s\n",
 cmd);

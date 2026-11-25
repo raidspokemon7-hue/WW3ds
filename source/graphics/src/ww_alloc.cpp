@@ -9,7 +9,7 @@ const KComp& want)
         {
             if (!have.set) return true;
             if (have.sym != want.sym) return false;
-            if (have.sym == SYM_NONE) return std::fabs(have.fixed - want.fixed) < 1e - 6f;
+            if (have.sym == SYM_NONE) return std::fabs(have.fixed - want.fixed) < 1e-6f;
             return have.chan == want.chan 
 && have.inv == want.inv;
             
