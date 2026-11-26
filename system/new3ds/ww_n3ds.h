@@ -32,6 +32,7 @@ int bytes);
     void n3dsCloseLog(void);
     void n3dsAudioShutdown(void);
     void n3dsAudioStreamDrop(void);
+    void n3dsOpeningPrepare(void);
     int n3dsMemcardQuiesce(unsigned timeoutMs);
     void n3dsSetLogPath(const char * path);
     void n3dsSetBootStage(const char * stage);

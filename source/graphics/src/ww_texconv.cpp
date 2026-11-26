@@ -1599,6 +1599,7 @@ int fmt,
 int quality,
 uint8_t * dst) 
         {
+            if (!dst) return;
             std::memset(dst,
 0,
 picaTextureBytes(fmt,

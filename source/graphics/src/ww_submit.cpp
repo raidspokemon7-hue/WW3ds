@@ -59,6 +59,7 @@ std::shared_ptr < PackedUniforms > preparedUniforms =
             P.dstAlpha = S.dstAlpha;
             P.pixelFmt = S.pixelFmt;
             P.zCompBeforeTex = S.zCompBeforeTex;
+            P.projOrtho = S.proj.ortho;
             if (!P.pica().vs.ok) return;
             P.frame = mapFrame(S,
 frameCfg,
@@ -1002,6 +1003,7 @@ std::shared_ptr < PackedUniforms > preparedUniforms)
         P.dstAlpha = S.dstAlpha;
         P.pixelFmt = S.pixelFmt;
         P.zCompBeforeTex = S.zCompBeforeTex;
+        P.projOrtho = S.proj.ortho;
         if (d.unsupportedPrim) 
         {
             P.uniforms.clear();

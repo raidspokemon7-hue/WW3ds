@@ -101,6 +101,12 @@ far) : - 0.5f);
             for (uint16_t i : q) M.clearIdx.push_back(i);
             C3dPlan& L = M.clear;
             L.shader = shaders.get(efbClearShaderSource());
+            if (!L.shader) 
+            {
+                M.why = "scratch clear shader deferred";
+                return M;
+                
+            }
             if (!L.shader->error.empty()) 
             {
                 M.why = "scratch clear shader: " + L.shader->error;

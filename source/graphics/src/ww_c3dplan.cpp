@@ -461,6 +461,13 @@ bool diagnostics)
             if (P.pica().role == PassRole::ScratchWrite)
             E.writeMask = uint8_t(ctru::WRITE_RED | ctru::WRITE_GREEN | ctru::WRITE_BLUE | ctru::WRITE_ALPHA | (P.pica().depth.write 
 && P.pica().depth.testEnable ? ctru::WRITE_DEPTH : 0));
+            // Ortho HUD / 2D must not inherit 3D depth test or depth writes.
+            if (P.projOrtho) 
+            {
+                E.depthTest = false;
+                E.writeMask = uint8_t(E.writeMask & ~ctru::WRITE_DEPTH);
+                
+            }
             E.alphaTest = P.pica().alpha.enable;
             E.alphaFunc = P.pica().alpha.func;
             E.alphaRef = P.pica().alpha.ref;
@@ -990,6 +997,8 @@ bool diagnostics,
             
         }
         L.shader = shaders.get(P.pica());
+        if (!L.shader) return refuse(L,
+"shader missing");
         if (!L.shader->error.empty()) return refuse(L,
 "shader: " + L.shader->error);
         if (T 

@@ -201,6 +201,7 @@ uint16_t * &) = nullptr;
         uint8_t dstAlpha = 0;
         uint8_t pixelFmt = 0;
         bool zCompBeforeTex = false;
+        bool projOrtho = false;
         float lodFrameBias = 0;
         std::vector < std::string > notes;
         PackedGeometryCache::Entry * packedFrom = nullptr;

@@ -3126,7 +3126,8 @@ F.reuseFull,
 (unsigned long)(g_r->backend().stats().textureBytes >> 10));
             
         }
-        if (!g_noBundleWrites 
+        if (!n3ds_warm::covering() 
+&& !g_noBundleWrites 
 && g_frames % 120 == 0 
 && g_r->missEntries() != g_missesWritten) 
         {
@@ -5311,9 +5312,35 @@ extern "C" int n3dsPaintSkipped(void)
 extern "C" float n3dsFoliageFar(float original) 
 {
     const int ab = g_foliageAb.load(std::memory_order_relaxed);
-    const int lim = ab >= 0 ? ab : g_tuning.farFoliage;
+    int lim = ab >= 0 ? ab : g_tuning.farFoliage;
+    // First-boot cover: cut tree/grass distance so cold frames stay nearer 10 FPS.
+    if (n3ds_warm::covering() 
+&& (lim <= 0 || lim > 900)) lim = 900;
     return lim > 0 
 && float(lim) < original ? float(lim) : original;
+    
+}
+extern "C" int n3dsWarmCovering(void) 
+{
+    return n3ds_warm::coveringGate() ? 1 : 0;
+    
+}
+extern "C" void n3dsOpeningPrepare(void) 
+{
+    if (!g_r || !g_r->ready()) return;
+    if (C3Dx_InFrame() || (n3dsRenderThreadActive() 
+&& n3dsRenderThreadBusy())) 
+    {
+        g_r->requestSceneDrop();
+        n3dsLog("[opening] prepare: GPU busy, scene drop requested\n");
+        return;
+        
+    }
+    // Idle GPU + drop caches before Opening archive / Outset allocate into linear.
+    C3Di_RenderQueueWaitDone();
+    C3Dx_WaitGpu();
+    g_r->dropSceneCaches();
+    n3dsLog("[opening] prepare: GPU idle, scene caches dropped\n");
     
 }
 extern "C" int n3dsJ3dProgramsOn(void) 

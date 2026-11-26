@@ -466,6 +466,13 @@ int h,
 std::string& why) 
     {
         L.shader = shaders.get(efbBlitShaderSource());
+        if (!L.shader) 
+        {
+            L.ok = false;
+            why = L.why = "mesh shader deferred";
+            return false;
+            
+        }
         if (!L.shader->error.empty()) 
         {
             L.ok = false;
@@ -720,7 +727,14 @@ base);
                     }
                     C3dPlan& L = R.blit;
                     L.shader = shaders.get(efbBlitShaderSource());
-                    if (!L.shader->error.empty()) 
+                    if (!L.shader) 
+                    {
+                        L.ok = false;
+                        L.why = "blit shader deferred";
+                        R.notes.push_back(L.why);
+                        
+                    }
+                    else if (!L.shader->error.empty()) 
                     {
                         L.ok = false;
                         L.why = "blit shader: " + L.shader->error;
@@ -856,7 +870,14 @@ rgba[r]);
 0);
                     C3dPlan& L = R.clear;
                     L.shader = shaders.get(efbClearShaderSource());
-                    if (!L.shader->error.empty()) 
+                    if (!L.shader) 
+                    {
+                        L.ok = false;
+                        L.why = "clear shader deferred";
+                        R.notes.push_back(L.why);
+                        
+                    }
+                    else if (!L.shader->error.empty()) 
                     {
                         L.ok = false;
                         L.why = "clear shader: " + L.shader->error;

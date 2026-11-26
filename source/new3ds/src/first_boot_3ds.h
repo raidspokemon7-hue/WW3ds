@@ -14,16 +14,21 @@ namespace n3ds_warm
 {
     inline constexpr const char * kMarker = N3DS_ROOT "/first-run.done";
     // Warm targets: percent only reaches 100 after these are met (or timeout).
-    inline constexpr int kNeededGoodFrames = 45;
-    inline constexpr int kNeededActiveFrames = 30;
+    inline constexpr int kNeededGoodFrames = 36;
+    inline constexpr int kNeededActiveFrames = 24;
     inline constexpr size_t kMinShaders = 8;
+    // 10 FPS floor: a present interval of 100 ms counts as a good frame.
     inline constexpr double kOkFrameMs = 100.0;
     inline constexpr uint64_t kGiveUpSeconds = 90;
+    // Do not repaint the cover on every single percent tick.
+    inline constexpr int kPresentPercentStep = 2;
+    inline constexpr uint64_t kPresentMinTicks = SYSCLOCK_ARM11 / 2;
     struct State 
     {
         bool covering = false;
         t2p::Renderer3ds * drawTarget = nullptr;
         uint64_t openedTick = 0;
+        uint64_t lastPresentTick = 0;
         int percent = 0;
         int shownPercent = -1;
         int goodFrames = 0;
@@ -40,7 +45,7 @@ namespace n3ds_warm
     }
     inline bool covering() 
     {
-        return state().covering;
+        return state().covering || coveringGate();
         
     }
     inline int textWidth(const char * s) 
@@ -338,6 +343,8 @@ f);
         g_lockControls.store(false,
 std::memory_order_release);
         s.covering = false;
+        g_covering.store(false,
+std::memory_order_release);
         n3dsSetBootStage("title");
         n3dsLog("[warm] first-run loading %s (%d%% shaders=%zu good=%d active=%d)\n",
 timedOut ? "gave up after 90s and opened the menu" : "ready, opening the menu",
@@ -367,7 +374,10 @@ s.activeFrames);
         State& s = state();
         s.drawTarget = &output;
         s.covering = true;
+        g_covering.store(true,
+std::memory_order_release);
         s.openedTick = svcGetSystemTick();
+        s.lastPresentTick = s.openedTick;
         s.percent = 0;
         s.shownPercent = -1;
         s.goodFrames = 0;
@@ -405,8 +415,9 @@ uint32_t draws)
 && presentMs <= kOkFrameMs) ++s.goodFrames;
         const int next = computePercent(s);
         if (next > s.percent) s.percent = next;
+        const uint64_t now = svcGetSystemTick();
         const bool giveUp = s.openedTick 
-&& svcGetSystemTick() - s.openedTick > kGiveUpSeconds * SYSCLOCK_ARM11;
+&& now - s.openedTick > kGiveUpSeconds * SYSCLOCK_ARM11;
         if (s.percent >= 100 || giveUp) 
         {
             finish(giveUp 
@@ -414,12 +425,20 @@ uint32_t draws)
             return;
             
         }
-        // Only redraw when the percent moves. Never WaitDone here — that was
-        // forcing sub-1 FPS by stalling core-2 every couple of frames.
+        // Pace cover redraws: every few percent or ~0.5 s. Never WaitDone mid-warm.
+        const bool stepped = s.percent >= s.shownPercent + kPresentPercentStep;
+        const bool timed = s.lastPresentTick == 0 
+|| now - s.lastPresentTick >= kPresentMinTicks;
         if (s.percent != s.shownPercent 
+&& (stepped || timed) 
 && present(s.percent,
 false,
-false)) s.shownPercent = s.percent;
+false)) 
+        {
+            s.shownPercent = s.percent;
+            s.lastPresentTick = now;
+            
+        }
         
     }
     

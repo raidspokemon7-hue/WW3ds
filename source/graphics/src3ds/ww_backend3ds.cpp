@@ -284,6 +284,7 @@ scales) == 16,
 8,
 8,
 GPU_RGBA8)) return fail("placeholder texture");
+        if (!dummy_.data) return fail("placeholder texture has no data");
         std::memset(dummy_.data,
 0,
 dummy_.size);
@@ -1171,15 +1172,11 @@ C3D_RenderTarget * mainTarget)
             return false;
             
         }
-        const float use = cmdUsage();
-        if (use >= 0.97f) 
-        {
-            st_.noCmdBuf++;
-            return fail("command buffer full");
-            
-        }
-        if (use >= splitAt_ || (kickDraws_ 
-&& ++sinceKick_ >= kickDraws_)) 
+        float use = cmdUsage();
+        const bool kickDue = kickDraws_ 
+&& ++sinceKick_ >= kickDraws_;
+        // Split before refusing: a full buffer mid-flyover must not drop draws.
+        if (use >= 0.97f || use >= splitAt_ || kickDue) 
         {
             flushArena();
             C3D_FrameSplit(GX_CMDLIST_FLUSH);
@@ -1188,6 +1185,13 @@ C3D_RenderTarget * mainTarget)
             splitAt_ = use + splitStep_;
             sinceKick_ = 0;
             st_.splits++;
+            use = cmdUsage();
+            if (use >= 0.97f) 
+            {
+                st_.noCmdBuf++;
+                return fail("command buffer full");
+                
+            }
             
         }
         for (int u = 0; u < 3; u++) 
@@ -1831,15 +1835,10 @@ R);
             if (!L.units[u].entry->user || reinterpret_cast < const GpuTex * > (L.units[u].entry->user)->gen != R.gen[u]) return viaDraw();
             
         }
-        const float use = cmdUsage();
-        if (use >= 0.97f) 
-        {
-            st_.noCmdBuf++;
-            return fail("command buffer full");
-            
-        }
-        if (use >= splitAt_ || (kickDraws_ 
-&& ++sinceKick_ >= kickDraws_)) 
+        float use = cmdUsage();
+        const bool kickDue = kickDraws_ 
+&& ++sinceKick_ >= kickDraws_;
+        if (use >= 0.97f || use >= splitAt_ || kickDue) 
         {
             flushArena();
             C3D_FrameSplit(GX_CMDLIST_FLUSH);
@@ -1848,6 +1847,13 @@ R);
             splitAt_ = use + splitStep_;
             sinceKick_ = 0;
             st_.splits++;
+            use = cmdUsage();
+            if (use >= 0.97f) 
+            {
+                st_.noCmdBuf++;
+                return fail("command buffer full");
+                
+            }
             
         }
         uint64_t rq = g_beProfOn ? svcGetSystemTick() : 0;

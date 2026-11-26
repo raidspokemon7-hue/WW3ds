@@ -111,7 +111,7 @@ sizeof waves);
     partial = 0;
     rate = hz;
     opened = true;
-    n3dsLog("[audio] NDSP S16 stereo %d Hz, %d x %d frames\n",
+    n3dsLog("[audio-open] NDSP S16 stereo %d Hz, %d x %d frames (paused until resume)\n",
 hz,
 kBuffers,
 kFrames);
@@ -124,6 +124,7 @@ extern "C" int n3dsAudioResume(void)
     if (!opened) return 0;
     ndspChnSetPaused(0,
 false);
+    n3dsLog("[audio-open] NDSP channel resumed\n");
     return 1;
     
 }
@@ -240,8 +241,16 @@ true);
 0,
 sizeof waves);
     partial = 0;
-    if(!settingsPaused)ndspChnSetPaused(0,
+    // Always leave the channel running for the next stream/BGM unless settings
+    // explicitly hold audio paused.
+    if(!settingsPaused)
+    {
+        ndspChnSetPaused(0,
 false);
+        n3dsLog("[audio-open] stream drop flushed; NDSP channel resumed\n");
+        
+    }
+    else n3dsLog("[audio-open] stream drop flushed; NDSP stays paused (settings)\n");
     
 }
 extern "C" void n3dsAudioHealth(void)
