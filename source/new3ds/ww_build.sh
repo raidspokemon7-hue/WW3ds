@@ -274,8 +274,8 @@ if [ "$mode" != relink ]; then
   for p in $pids; do wait $p; done
 
   GXX=$DEVKITARM/bin/arm-none-eabi-g++
-  F="-march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft"
-  RENDER_OPT=${N3DS_RENDER_OPT:-2}
+  F="-march=armv6k -mcpu=mpcore -mtune=mpcore -mfpu=vfpv2 -mfloat-abi=hard -mtp=soft"
+  RENDER_OPT=${N3DS_RENDER_OPT:-3}
   case "$RENDER_OPT" in 2|3) ;; *) echo "N3DS_RENDER_OPT must be 2 or 3" >&2; exit 1 ;; esac
   CXXF="-std=gnu++20 -O$RENDER_OPT -DN3DS_RENDER_OPT=$RENDER_OPT -mword-relocations -ffunction-sections $F -D__3DS__ -I$DEVKITPRO/libctru/include -I/hw6/src -I/hw6/src3ds -I/hw6 -I/arm/src"
   EVENT_INDIRECT=${N3DS_EVENT_INDIRECT:-0}

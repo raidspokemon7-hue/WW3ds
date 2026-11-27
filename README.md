@@ -8,11 +8,11 @@
 
 ## Download
 
-[WW3ds-sd.zip](https://github.com/raidspokemon7-hue/WW3ds/releases/download/v1.3/WW3ds-sd.zip)
+[WW3ds-sd.zip](https://github.com/raidspokemon7-hue/WW3ds/releases/download/v1.4/WW3ds-sd.zip)
 
 Unzip onto the SD card. Install `cia/ww3ds.cia` with FBI. Put your own GZLE01.iso in `3ds/ww3ds/game/`.
 
-This pack ships `performance.ini` with `foliage_far=2500`, `real_shadows=0`, `decode_helper=1`, `skip_draw=0`, and `rigid_clip=0`. Edit that file and restart to tune it.
+This pack ships `performance.ini` with `foliage_far=2500`, `real_shadows=0`, `decode_helper=1`, `skip_draw=0`, and `rigid_clip=0`. Optional: `engine_telem=1` for periodic engine timing logs. Edit that file and restart to tune it.
 
 ## What you need
 

@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -28,6 +29,7 @@ namespace t2p
         uint16_t inputMask = 0;
         std::string error;
         uintptr_t user = 0;
+        uint64_t lastUseFrame = 0;
         
     } ;
     class C3dShaderCache 
@@ -35,9 +37,22 @@ namespace t2p
         public:
         C3dShader * get(const PicaDraw&);
         C3dShader * get(const std::string& source);
+        C3dShader * get(uint64_t stateKey,
+const std::string& source);
+        void beginFrame(int assembleBudget);
+        int assembleBudgetLeft() const 
+        {
+            return assembleLeft_;
+            
+        }
         size_t size() const 
         {
             return count_;
+            
+        }
+        size_t deferredMisses() const 
+        {
+            return deferred_;
             
         }
         template < class F > void forEach(F f) 
@@ -45,9 +60,22 @@ namespace t2p
             for (auto& kv : byKey_) for (auto& s : kv.second) f( * s);
             
         }
+        // Drop GPU program handles for cold entries; keep host SHBIN/source.
+        size_t releaseColdGpuHandles(uint64_t olderThanFrame,
+size_t maxRelease,
+const std::function < void(C3dShader&) > & release);
         private:
+        C3dShader * insertAssembled(uint64_t key,
+std::string source,
+PicaAsmResult bin);
+        bool tryLoadShbin(uint64_t key,
+PicaAsmResult& out) const;
+        void trySaveShbin(uint64_t key,
+const PicaAsmResult& bin) const;
         std::map < uint64_t, std::vector < std::unique_ptr < C3dShader >> > byKey_;
         size_t count_ = 0;
+        size_t deferred_ = 0;
+        int assembleLeft_ = 2;
         uint64_t id_ = nextId();
         static uint64_t nextId() 
         {

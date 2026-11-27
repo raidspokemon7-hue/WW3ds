@@ -230,6 +230,8 @@ bool reuse = false);
         const TexEntry * renderedAt(uint32_t addr) const;
         uint8_t scaledRenderedTexmaps(const GxTexBinding bindings[8]) const;
         void beginFrame(const GuestMem& mem);
+        // Evict unprotected LRU entries until under budget or cand exhausted.
+        bool pressureEvict();
         void publishKnown() const;
         size_t sampleBytes() const 
         {

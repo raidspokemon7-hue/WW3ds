@@ -11,8 +11,10 @@ extern "C" void n3dsPresentPace(void) __attribute__((weak));
 #include <cstdlib>
 #include <cstring>
 #include <utility>
+#include <vector>
 extern void ( * g_r3dsTrace)(const char * ,
 int);
+extern "C" int n3dsWarmCovering(void) __attribute__((weak));
 #define R3T(w, i) do { if (g_r3dsTrace) g_r3dsTrace(w, i); } while (0)
 namespace t2p 
 {
@@ -45,6 +47,66 @@ namespace t2p
             
         }
         constexpr uint32_t kRouteClear = 0xF4E2B0FFu;   // opaque parchment behind the live map
+        // Solid world geometry that can keep PICA Early-Z active.
+        bool opaqueEarlyZCandidate(const RecordedEvent3ds& e) 
+        {
+            if (!e.isDraw()) return false;
+            const GxState& S = e.viewState();
+            if (S.proj.ortho || S.draw.projOrtho) return false;
+            if (!S.draw.z.compare || !S.draw.z.update) return false;
+            const GxAlphaCompare& a = S.draw.alpha;
+            // ALWAYS/ALWAYS → alpha test disabled in PICA (cutouts stay unsorted).
+            if (a.comp0 != 7 || a.comp1 != 7) return false;
+            if ((S.draw.blend.mode & 3) != 0) return false;
+            return true;
+            
+        }
+        float approxViewZ(const RecordedEvent3ds& e) 
+        {
+            const VtxUniformView v = e.viewState().uniformView();
+            // GX pos mtx 0 translation Z; eye looks down -Z so nearer = larger Z.
+            return v.pos[0][2][3];
+            
+        }
+        // Front-to-back within opaque runs so Early-Z rejects occluded pixels early.
+        void sortOpaqueRunsFrontToBack(EventDeque3ds& evs,
+size_t n) 
+        {
+            if (n < 2 || evs.size() < n) return;
+            size_t i = 0;
+            while (i < n) 
+            {
+                if (!opaqueEarlyZCandidate(evs[i])) 
+                {
+                    ++i;
+                    continue;
+                    
+                }
+                size_t j = i + 1;
+                while (j < n 
+&& opaqueEarlyZCandidate(evs[j])) ++j;
+                if (j - i >= 2) 
+                {
+                    std::vector < RecordedEvent3ds > chunk;
+                    chunk.reserve(j - i);
+                    for (size_t k = i; k < j; ++k) chunk.push_back(std::move(evs[k]));
+                    std::stable_sort(chunk.begin(),
+chunk.end(),
+[](const RecordedEvent3ds& a,
+const RecordedEvent3ds& b) 
+                    {
+                        return approxViewZ(a) > approxViewZ(b);
+                        
+                    }
+                    );
+                    for (size_t k = 0; k < chunk.size(); ++k) evs[i + k] = std::move(chunk[k]);
+                    
+                }
+                i = j;
+                
+            }
+            
+        }
         
     }
     bool Renderer3ds::init(const RendererOptions& o,
@@ -245,20 +307,29 @@ ResidentGeometryHit& out)
     }
     void Renderer3ds::updateLinearPressure()
     {
-        if(!reuseOn_ 
-&& !residentOn_)
-        {
-            be_.linearPressure = nullptr;
-            return;
-            
-        }
         be_.linearPressure = [this]
         {
-            const bool a = reuseOn_ 
-&& reuseEvictUnused();
-            const bool b = residentOn_ 
-&& residentEvictUnused();
-            return a || b;
+            bool any = false;
+            if (reuseOn_) any = reuseEvictUnused() || any;
+            if (residentOn_) any = residentEvictUnused() || any;
+            any = cache_.pressureEvict() || any;
+            const uint64_t coldBefore = frames_ > 120 ? frames_ - 120 : 0;
+            any = shaders_.releaseColdGpuHandles(coldBefore,
+16,
+[this](C3dShader& s) 
+            {
+                be_.releaseShader(s);
+                
+            }
+            ) > 0 || any;
+            if (!any 
+&& linearSpaceFree() < (1024u << 10)) 
+            {
+                C3D_FrameSplit(GX_CMDLIST_FLUSH);
+                any = true;
+                
+            }
+            return any;
             
         } ;
         
@@ -865,6 +936,12 @@ std::memory_order_acq_rel)) dropSceneCaches();
         be_.beginFrame();
         R3T("be.beginFrame",
 0);
+        {
+            const int cover = n3dsWarmCovering ? n3dsWarmCovering() : 0;
+            // Cap new assemblePica work: 1/frame while covered, 2/frame in play.
+            shaders_.beginFrame(cover ? 1 : 2);
+            
+        }
         const uint64_t sp1 = opt_.frameTiming?svcGetSystemTick():0;
         cache_.beginFrame( * mem_);
         if(opt_.frameTiming)R.splitTicks[1] += svcGetSystemTick() - sp1;
@@ -976,6 +1053,8 @@ R);
         uint8_t keyMemoScaled = 0;
         planPrevOwner_.reset();
         planPrevAt_ = ~size_t(0);
+        sortOpaqueRunsFrontToBack(evs_,
+n);
         const uint64_t sp2 = opt_.frameTiming?svcGetSystemTick():0;
         for (size_t i = 0; i < n; i++) 
         {
@@ -3384,11 +3463,29 @@ index);
 index);
         if (D.planOk) 
         {
-            D.drawn = D.twoPass ? be_.drawTwoPass(multi,
+            // During first-boot cover: still plan/assemble for cache growth, but do not
+            // submit 3D geometry to PICA (the Preparing UI owns both screens).
+            const bool coverSkip3d = n3dsWarmCovering && n3dsWarmCovering();
+            if (coverSkip3d) 
+            {
+                D.drawn = false;
+                D.why = "warm cover: 3D submit skipped";
+                if (plan.ok 
+&& plan.shader) plan.shader->lastUseFrame = frames_;
+                
+            }
+            else 
+            {
+                D.drawn = D.twoPass ? be_.drawTwoPass(multi,
 scratch_,
 target_) : be_.draw(plan);
-            if (!D.drawn) D.why = be_.lastError();
-            else if (D.twoPass) R.twoPass++;
+                if (!D.drawn) D.why = be_.lastError();
+                else if (D.twoPass) R.twoPass++;
+                if (D.drawn 
+&& plan.ok 
+&& plan.shader) plan.shader->lastUseFrame = frames_;
+                
+            }
             
         }
         if(!prepared 

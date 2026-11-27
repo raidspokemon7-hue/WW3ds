@@ -35,6 +35,95 @@ namespace t2p
             return h;
             
         }
+        void fnvMix(uint64_t& h,
+const void * p,
+size_t n) 
+        {
+            const auto * b = static_cast < const unsigned char * > (p);
+            for (size_t i = 0; i < n; ++i) 
+            {
+                h ^= b[i];
+                h *= 1099511628211ULL;
+                
+            }
+            
+        }
+        // Hash GX vertex/material setup before any PICA assembly string work.
+        uint64_t hashVtxSetup(const VtxSetup& s) 
+        {
+            uint64_t h = 1469598103934665603ULL;
+            fnvMix(h,
+&s.color0,
+sizeof s.color0);
+            fnvMix(h,
+&s.alpha0,
+sizeof s.alpha0);
+            fnvMix(h,
+&s.needColor,
+sizeof s.needColor);
+            fnvMix(h,
+&s.numPosMtx,
+sizeof s.numPosMtx);
+            fnvMix(h,
+&s.inPos,
+sizeof s.inPos);
+            fnvMix(h,
+&s.inNrm,
+sizeof s.inNrm);
+            fnvMix(h,
+&s.inClr0,
+sizeof s.inClr0);
+            fnvMix(h,
+&s.inMtxIdx,
+sizeof s.inMtxIdx);
+            fnvMix(h,
+s.inTex,
+sizeof s.inTex);
+            fnvMix(h,
+&s.flipT,
+sizeof s.flipT);
+            fnvMix(h,
+&s.texScaleMask,
+sizeof s.texScaleMask);
+            fnvMix(h,
+&s.dbgClipReg,
+sizeof s.dbgClipReg);
+            fnvMix(h,
+&s.dbgTc,
+sizeof s.dbgTc);
+            const size_t n = s.texgen.size();
+            fnvMix(h,
+&n,
+sizeof n);
+            for (size_t i = 0; i < n; ++i) fnvMix(h,
+&s.texgen[i],
+sizeof(VtxTexGen));
+            return h;
+            
+        }
+        VtxShader genVertexShaderCached(const VtxSetup& s,
+uint64_t * outKey = nullptr) 
+        {
+            const uint64_t key = hashVtxSetup(s);
+            if (outKey) * outKey = key;
+            struct Memo 
+            {
+                uint64_t key = 0;
+                bool valid = false;
+                VtxShader vs;
+                
+            } ;
+            static thread_local Memo memo[64];
+            static thread_local unsigned next = 0;
+            for (Memo& m : memo) if (m.valid 
+&& m.key == key) return m.vs;
+            Memo& slot = memo[next++ & 63];
+            slot.key = key;
+            slot.vs = genVertexShader(s);
+            slot.valid = true;
+            return slot.vs;
+            
+        }
         std::string num(int v) 
         {
             return std::to_string(v);
@@ -187,7 +276,7 @@ const UnitPair& b)
             vs.inMtxIdx = 3;
             for (int t = 0; t < 8; t++) vs.inTex[t] = 4 + t;
             uint64_t c0 = g_compileClock ? g_compileClock() : 0;
-            VtxShader first = genVertexShader(vs);
+            VtxShader first = genVertexShaderCached(vs);
             if (g_compileClock) 
             {
                 const uint64_t c = g_compileClock();
@@ -227,7 +316,9 @@ reg++
                 for (int t = 0; t < 8; t++) packed.inTex[t] = first.usesTexAttr[t] ? add(DrawAttr::Tex,
 t) : - 1;
                 D.vtx = packed;
-                D.vs = genVertexShader(packed);
+                // State key first: warm materials skip string formatting + compare.
+                D.vs = genVertexShaderCached(packed,
+&D.vsKey);
                 if (g_compileClock) 
                 {
                     const uint64_t c = g_compileClock();
@@ -239,7 +330,7 @@ t) : - 1;
                 else 
                 {
                     for (const std::string& n : D.vs.notes) note("vertex: " + n);
-                    D.vsKey = fnv1a(D.vs.source);
+                    if (!D.vsKey) D.vsKey = fnv1a(D.vs.source);
                     struct ParseMemo 
                     {
                         uint64_t key = 0;

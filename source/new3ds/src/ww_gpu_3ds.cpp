@@ -2063,12 +2063,19 @@ size);
             {
                 
             }
-            bool got = false;
-            for (int spin = 0; spin < 4000 
-&& !got; spin++) got = fifo->runDecodeJob();
-            if (got) continue;
+            // Short yield instead of a multi-thousand busy spin so the helper
+            // never burns a core while the queue is empty.
+            if (fifo->runDecodeJob()) continue;
             g_decodeAsleep.store(true,
 std::memory_order_release);
+            if (fifo->runDecodeJob()) 
+            {
+                g_decodeAsleep.store(false,
+std::memory_order_release);
+                continue;
+                
+            }
+            svcSleepThread(100000); // 0.1 ms
             if (fifo->runDecodeJob()) 
             {
                 g_decodeAsleep.store(false,
@@ -2406,6 +2413,20 @@ depthPersp);
         if (g_measurePresent) C3Di_RenderQueueWaitDone();
         const uint64_t finishWaitTicks = queueSample?svcGetSystemTick() - finishTick:0;
         const double renderMs = double(svcGetSystemTick() - r0) * 1000.0 / SYSCLOCK_ARM11, processMs = double(g_processTicks) * 1000.0 / SYSCLOCK_ARM11;
+        if (g_tuning.engineTelem 
+&& (g_frames.load() < 5 || (g_frames.load() + 1) % 30 == 0)) 
+        {
+            const double toMs = 1000.0 / double(SYSCLOCK_ARM11);
+            n3dsLog("[engine_telem] frame %lu Logic %.2f GXDecode %.2f Plan %.2f PICASubmit %.2f FrameEndGPU %.2f linearFreeKB %lu\n",
+(unsigned long)(g_frames.load() + 1),
+processMs,
+F.buildMs,
+F.planMs,
+F.drawMs,
+double(finishWaitTicks) * toMs,
+(unsigned long)(linearSpaceFree() >> 10));
+            
+        }
         if(F.packetJobs 
 && (g_frames.load() < 5 || (g_frames.load() + 1) % 60 == 0))n3dsLog("[packet-worker] frame %lu jobs %u wait %.2f ms checks %u mismatches %u\n",
 (unsigned long)(g_frames.load() + 1),
@@ -5197,6 +5218,8 @@ lag);
         
     }
     g_skipDecided = false;
+    // First-boot cover must keep painting so shader/texture discovery advances.
+    if (n3ds_warm::covering()) skip = false;
     if (!skip) g_paintSlotRing[g_paintEndedN.load(std::memory_order_relaxed) & 7] = g_skipIdeal;
     since = skip ? since + 1 : 0;
     g_skipRun = skip ? g_skipRun + 1 : 0;

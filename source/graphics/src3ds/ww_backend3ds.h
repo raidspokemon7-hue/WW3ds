@@ -278,7 +278,12 @@ size_t align);
         Log log_;
         std::string err_;
         Stats st_;
+        u8 * arenas_[2] = 
+        {
+            nullptr, nullptr
+        } ;
         u8 * arena_ = nullptr;
+        int arenaActive_ = 0;
         size_t arenaSize_ = 0, arenaUsed_ = 0, arenaFlushed_ = 0;
         float splitAt_ = 0.25f;
         int kickDraws_ = 0, sinceKick_ = 0;

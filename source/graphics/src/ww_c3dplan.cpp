@@ -3,11 +3,16 @@
 #include "ww_c3dplan.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <iterator>
 #include <list>
 #include <string_view>
 #include <unordered_map>
+#include <vector>
+#ifdef __3DS__
+#include <sys/stat.h>
+#endif
 namespace t2p 
 {
     const std::string * internUniformName(const std::string& name) 
@@ -20,6 +25,9 @@ namespace t2p
     }
     namespace 
     {
+        constexpr uint32_t kShbinMagic = 0x48535757u; // 'WWSH' LE
+        constexpr uint32_t kShbinVersion = 1;
+        constexpr const char * kShbinDir = "sdmc:/3ds/ww3ds/cache/shaders";
         std::string hex64(uint64_t v) 
         {
             static const char * d = "0123456789abcdef";
@@ -34,6 +42,36 @@ v >>= 4) s[size_t(i)] = d[v & 15];
         {
             return hashBytes(reinterpret_cast < const uint8_t * > (s.data()),
 s.size());
+            
+        }
+        void fillUniforms(C3dShader& sh) 
+        {
+            sh.inputMask = sh.bin.inputMask;
+            for (const PicaBinUniform& u : sh.bin.uniforms) 
+            {
+                if (u.pos < 0x20) continue;
+                if (u.pos >= 0x80) 
+                {
+                    sh.error = "shader declares an integer / boolean uniform (" + u.name + "): not part of the host contract";
+                    break;
+                    
+                }
+                sh.uniforms[u.name] = 
+                {
+                    c3dUniformId(u.pos), u.size, packedUniformSlot(u.name), internUniformName(u.name)
+                } ;
+                
+            }
+            sh.uniformsById.assign(sh.uniforms.begin(),
+sh.uniforms.end());
+            std::sort(sh.uniformsById.begin(),
+sh.uniformsById.end(),
+[](const auto& a,
+const auto& b) 
+            {
+                return a.second.id < b.second.id; 
+            }
+            );
             
         }
         template < class T > void put(std::string& s,
@@ -77,11 +115,280 @@ const std::string& why)
         return uint16_t(i & 0x1FFF);
         
     }
+    void C3dShaderCache::beginFrame(int assembleBudget) 
+    {
+        assembleLeft_ = assembleBudget > 0 ? assembleBudget : 0;
+        
+    }
+    bool C3dShaderCache::tryLoadShbin(uint64_t key,
+PicaAsmResult& out) const 
+    {
+#ifdef __3DS__
+        const std::string path = std::string(kShbinDir) + "/" + hex64(key) + ".shbin";
+        FILE * f = std::fopen(path.c_str(),
+"rb");
+        if (!f) return false;
+        uint32_t magic = 0, ver = 0, shbinBytes = 0;
+        uint16_t inputMask = 0, outputMask = 0;
+        uint32_t entryStart = 0, entryEnd = 0, uniCount = 0;
+        if (std::fread(&magic,
+4,
+1,
+f) != 1 || magic != kShbinMagic || std::fread(&ver,
+4,
+1,
+f) != 1 || ver != kShbinVersion ||
+        std::fread(&inputMask,
+2,
+1,
+f) != 1 || std::fread(&outputMask,
+2,
+1,
+f) != 1 || std::fread(&entryStart,
+4,
+1,
+f) != 1 || std::fread(&entryEnd,
+4,
+1,
+f) != 1 ||
+        std::fread(&shbinBytes,
+4,
+1,
+f) != 1 || shbinBytes == 0 || shbinBytes > (8u << 20)) 
+        {
+            std::fclose(f);
+            return false;
+            
+        }
+        out.shbin.resize(shbinBytes);
+        if (std::fread(out.shbin.data(),
+1,
+shbinBytes,
+f) != shbinBytes) 
+        {
+            std::fclose(f);
+            return false;
+            
+        }
+        if (std::fread(&uniCount,
+4,
+1,
+f) != 1 || uniCount > 256) 
+        {
+            std::fclose(f);
+            return false;
+            
+        }
+        out.uniforms.clear();
+        out.uniforms.reserve(uniCount);
+        for (uint32_t i = 0; i < uniCount; i++) 
+        {
+            uint16_t nameLen = 0;
+            int32_t pos = 0, size = 0, type = 0;
+            if (std::fread(&nameLen,
+2,
+1,
+f) != 1 || nameLen > 128) 
+            {
+                std::fclose(f);
+                return false;
+                
+            }
+            std::string name(nameLen,
+'\0');
+            if (nameLen 
+&& std::fread(name.data(),
+1,
+nameLen,
+f) != nameLen) 
+            {
+                std::fclose(f);
+                return false;
+                
+            }
+            if (std::fread(&pos,
+4,
+1,
+f) != 1 || std::fread(&size,
+4,
+1,
+f) != 1 || std::fread(&type,
+4,
+1,
+f) != 1) 
+            {
+                std::fclose(f);
+                return false;
+                
+            }
+            PicaBinUniform u;
+            u.name = std::move(name);
+            u.pos = pos;
+            u.size = size;
+            u.type = type;
+            out.uniforms.push_back(std::move(u));
+            
+        }
+        std::fclose(f);
+        out.ok = true;
+        out.inputMask = inputMask;
+        out.outputMask = outputMask;
+        out.entryStart = entryStart;
+        out.entryEnd = entryEnd;
+        return true;
+#else
+        (void)key;
+        (void)out;
+        return false;
+#endif
+        
+    }
+    void C3dShaderCache::trySaveShbin(uint64_t key,
+const PicaAsmResult& bin) const 
+    {
+#ifdef __3DS__
+        if (!bin.ok || bin.shbin.empty()) return;
+        mkdir("sdmc:/3ds/ww3ds",
+0777);
+        mkdir("sdmc:/3ds/ww3ds/cache",
+0777);
+        mkdir(kShbinDir,
+0777);
+        const std::string path = std::string(kShbinDir) + "/" + hex64(key) + ".shbin";
+        const std::string tmp = path + ".tmp";
+        FILE * f = std::fopen(tmp.c_str(),
+"wb");
+        if (!f) return;
+        const uint32_t magic = kShbinMagic, ver = kShbinVersion, shbinBytes = uint32_t(bin.shbin.size()), uniCount = uint32_t(bin.uniforms.size());
+        const uint16_t inputMask = bin.inputMask, outputMask = bin.outputMask;
+        bool ok = std::fwrite(&magic,
+4,
+1,
+f) == 1 
+&& std::fwrite(&ver,
+4,
+1,
+f) == 1 
+&& std::fwrite(&inputMask,
+2,
+1,
+f) == 1 
+&& std::fwrite(&outputMask,
+2,
+1,
+f) == 1 
+&&
+        std::fwrite(&bin.entryStart,
+4,
+1,
+f) == 1 
+&& std::fwrite(&bin.entryEnd,
+4,
+1,
+f) == 1 
+&& std::fwrite(&shbinBytes,
+4,
+1,
+f) == 1 
+&&
+        std::fwrite(bin.shbin.data(),
+1,
+shbinBytes,
+f) == shbinBytes 
+&& std::fwrite(&uniCount,
+4,
+1,
+f) == 1;
+        for (const PicaBinUniform& u : bin.uniforms) 
+        {
+            if (!ok) break;
+            const uint16_t nameLen = uint16_t(std::min < size_t > (u.name.size(),
+128));
+            const int32_t pos = u.pos, size = u.size, type = u.type;
+            ok = std::fwrite(&nameLen,
+2,
+1,
+f) == 1 
+&& (nameLen == 0 || std::fwrite(u.name.data(),
+1,
+nameLen,
+f) == nameLen) 
+&&
+            std::fwrite(&pos,
+4,
+1,
+f) == 1 
+&& std::fwrite(&size,
+4,
+1,
+f) == 1 
+&& std::fwrite(&type,
+4,
+1,
+f) == 1;
+            
+        }
+        std::fclose(f);
+        if (!ok) 
+        {
+            std::remove(tmp.c_str());
+            return;
+            
+        }
+        std::remove(path.c_str());
+        std::rename(tmp.c_str(),
+path.c_str());
+#else
+        (void)key;
+        (void)bin;
+#endif
+        
+    }
+    C3dShader * C3dShaderCache::insertAssembled(uint64_t key,
+std::string source,
+PicaAsmResult bin) 
+    {
+        auto sh = std::make_unique < C3dShader > ();
+        sh->key = key;
+        sh->source = std::move(source);
+        sh->bin = std::move(bin);
+        if (!sh->bin.ok) sh->error = sh->bin.error;
+        else fillUniforms( * sh);
+        auto& chain = byKey_[key];
+        chain.push_back(std::move(sh));
+        count_++;
+        return chain.back().get();
+        
+    }
+    size_t C3dShaderCache::releaseColdGpuHandles(uint64_t olderThanFrame,
+size_t maxRelease,
+const std::function < void(C3dShader&) > & release) 
+    {
+        if (!release || !maxRelease) return 0;
+        size_t n = 0;
+        for (auto& kv : byKey_) for (auto& s : kv.second) 
+        {
+            if (n >= maxRelease) return n;
+            if (!s || !s->user || s->lastUseFrame >= olderThanFrame) continue;
+            release( * s);
+            ++n;
+            
+        }
+        return n;
+        
+    }
     C3dShader * C3dShaderCache::get(const PicaDraw& d) 
     {
         if (d.shaderMemo.cacheId == id_ 
-&& d.shaderMemo.shader) return static_cast < C3dShader * > (d.shaderMemo.shader);
-        C3dShader * s = get(d.vs.source);
+&& d.shaderMemo.shader) 
+        {
+            auto * s = static_cast < C3dShader * > (d.shaderMemo.shader);
+            return s;
+            
+        }
+        // Prefer the precomputed state key so warm hits skip string hashing/compare.
+        C3dShader * s = d.vsKey ? get(d.vsKey,
+d.vs.source) : get(d.vs.source);
         d.shaderMemo.cacheId = id_;
         d.shaderMemo.shader = s;
         return s;
@@ -89,51 +396,39 @@ const std::string& why)
     }
     C3dShader * C3dShaderCache::get(const std::string& src) 
     {
-        const uint64_t key = hashStr(src);
+        return get(hashStr(src),
+src);
+        
+    }
+    C3dShader * C3dShaderCache::get(uint64_t stateKey,
+const std::string& src) 
+    {
+        const uint64_t key = stateKey ? stateKey : hashStr(src);
         auto& chain = byKey_[key];
-        for (auto& s : chain) if (s->source == src) return s.get();
-        auto sh = std::make_unique < C3dShader > ();
-        sh->key = key;
-        sh->source = src;
-        sh->bin = assemblePica(src,
-"shader_" + hex64(key) + ".v.pica");
-        if (!sh->bin.ok) 
+        if (chain.size() == 1 
+&& chain[0]->key == key) return chain[0].get();
+        for (auto& s : chain) if (s->key == key 
+&& (src.empty() || s->source == src || s->source.empty())) return s.get();
+        // Disk SHBIN hit: cheap, does not consume the assemble budget.
+        PicaAsmResult disk;
+        if (tryLoadShbin(key,
+disk)) return insertAssembled(key,
+src,
+std::move(disk));
+        if (assembleLeft_ <= 0) 
         {
-            sh->error = sh->bin.error;
-            
-        } else 
-        {
-            sh->inputMask = sh->bin.inputMask;
-            for (const PicaBinUniform& u : sh->bin.uniforms) 
-            {
-                if (u.pos < 0x20) continue;
-                if (u.pos >= 0x80) 
-                {
-                    sh->error = "shader declares an integer / boolean uniform (" + u.name + "): not part of the host contract";
-                    break;
-                    
-                }
-                sh->uniforms[u.name] = 
-                {
-                    c3dUniformId(u.pos), u.size, packedUniformSlot(u.name), internUniformName(u.name)
-                } ;
-                
-            }
-            sh->uniformsById.assign(sh->uniforms.begin(),
-sh->uniforms.end());
-            std::sort(sh->uniformsById.begin(),
-sh->uniformsById.end(),
-[](const auto& a,
-const auto& b) 
-            {
-                return a.second.id < b.second.id; 
-            }
-            );
+            ++deferred_;
+            return nullptr;
             
         }
-        chain.push_back(std::move(sh));
-        count_++;
-        return chain.back().get();
+        --assembleLeft_;
+        PicaAsmResult bin = assemblePica(src,
+"shader_" + hex64(key) + ".v.pica");
+        if (bin.ok) trySaveShbin(key,
+bin);
+        return insertAssembled(key,
+src,
+std::move(bin));
         
     }
     void c3dFinalize(C3dPlan& L) 
@@ -468,6 +763,7 @@ bool diagnostics)
                 E.writeMask = uint8_t(E.writeMask & ~ctru::WRITE_DEPTH);
                 
             }
+            // Solid geometry: keep alpha-test off so PICA Early-Z stays active.
             E.alphaTest = P.pica().alpha.enable;
             E.alphaFunc = P.pica().alpha.func;
             E.alphaRef = P.pica().alpha.ref;

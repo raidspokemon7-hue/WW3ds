@@ -276,9 +276,29 @@ scales) == 16,
     bool Backend3ds::init(size_t arenaBytes) 
     {
         shutdown();
-        arena_ = static_cast < u8 * > (linearAlloc(arenaBytes));
-        if (!arena_) return fail("linearAlloc for the draw arena failed");
-        arenaSize_ = arenaBytes;
+        // Dual slabs: same total footprint as before, swapped O(1) each frame so the
+        // GPU can still read the previous frame while the CPU fills the next.
+        const size_t slab = arenaBytes >= 2 ? (arenaBytes / 2) & ~size_t(15) : arenaBytes;
+        arenas_[0] = static_cast < u8 * > (linearAlloc(slab));
+        arenas_[1] = static_cast < u8 * > (linearAlloc(slab));
+        if (!arenas_[0] || !arenas_[1]) 
+        {
+            if (arenas_[0]) linearFree(arenas_[0]);
+            if (arenas_[1]) linearFree(arenas_[1]);
+            arenas_[0] = arenas_[1] = nullptr;
+            // Fallback: single slab at full size if dual alloc fails.
+            arena_ = static_cast < u8 * > (linearAlloc(arenaBytes));
+            if (!arena_) return fail("linearAlloc for the draw arena failed");
+            arenaSize_ = arenaBytes;
+            arenaActive_ = 0;
+            
+        } else 
+        {
+            arenaSize_ = slab;
+            arenaActive_ = 0;
+            arena_ = arenas_[0];
+            
+        }
         arenaUsed_ = 0;
         if (!C3D_TexInit(&dummy_,
 8,
@@ -351,12 +371,20 @@ dummy_.size);
             dummyOk_ = false;
             
         }
-        if (arena_) 
+        if (arenas_[0] || arenas_[1]) 
+        {
+            if (arenas_[0]) linearFree(arenas_[0]);
+            if (arenas_[1]) linearFree(arenas_[1]);
+            arenas_[0] = arenas_[1] = nullptr;
+            arena_ = nullptr;
+            
+        } else if (arena_) 
         {
             linearFree(arena_);
             arena_ = nullptr;
             
         }
+        arenaActive_ = 0;
         arenaSize_ = arenaUsed_ = 0;
         
     }
@@ -378,6 +406,13 @@ sizeof(uniformValid_));
     void Backend3ds::beginFrame() 
     {
         g_hwDrawNo = 0;
+        if (arenas_[0] 
+&& arenas_[1]) 
+        {
+            arenaActive_ ^= 1;
+            arena_ = arenas_[arenaActive_];
+            
+        }
         arenaUsed_ = arenaFlushed_ = 0;
         splitAt_ = splitStep_;
         sinceKick_ = 0;

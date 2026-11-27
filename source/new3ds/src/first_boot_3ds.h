@@ -35,6 +35,7 @@ namespace n3ds_warm
         int activeFrames = 0;
         int frameIndex = 0;
         size_t peakShaders = 0;
+        size_t peakTextures = 0;
         
     } ;
     inline State& state() 
@@ -298,10 +299,11 @@ false);
     // Raw completion score from warm work. Never used to lower the shown %.
     inline int computePercent(const State& s) 
     {
+        // Shader/texture discovery drives most of the bar while cold (presentMs may be huge).
         const int shaderPart = int(std::min < size_t > (s.peakShaders,
-kMinShaders) * 35 / kMinShaders);
-        const int goodPart = std::min(s.goodFrames,
-kNeededGoodFrames) * 40 / kNeededGoodFrames;
+kMinShaders) * 45 / kMinShaders);
+        const int discoverPart = std::min(s.goodFrames,
+kNeededGoodFrames) * 30 / kNeededGoodFrames;
         const int activePart = std::min(s.activeFrames,
 kNeededActiveFrames) * 20 / kNeededActiveFrames;
         int timePart = 0;
@@ -313,9 +315,9 @@ kNeededActiveFrames) * 20 / kNeededActiveFrames;
 soft) * 5 / soft);
             
         }
-        int total = shaderPart + goodPart + activePart + timePart;
+        int total = shaderPart + discoverPart + activePart + timePart;
         if (total > 99) total = 99;
-        // Cap at 99 until every hard target is met so 100% means ready.
+        // Cap at 99 until discovery targets are met so 100% means ready.
         if (s.goodFrames >= kNeededGoodFrames 
 && s.activeFrames >= kNeededActiveFrames 
 && s.peakShaders >= kMinShaders) total = 100;
@@ -384,6 +386,7 @@ std::memory_order_release);
         s.activeFrames = 0;
         s.frameIndex = 0;
         s.peakShaders = 0;
+        s.peakTextures = 0;
         g_lockControls.store(true,
 std::memory_order_release);
         output.setHideOutput(true);
@@ -408,11 +411,17 @@ uint32_t draws)
         output.setHideOutput(true);
         ++s.frameIndex;
         const size_t shaders = output.shaders().size();
-        if (shaders > s.peakShaders) s.peakShaders = shaders;
+        const size_t textures = output.cache().stats().entries;
+        const bool grewShaders = shaders > s.peakShaders;
+        const bool grewTextures = textures > s.peakTextures;
+        if (grewShaders) s.peakShaders = shaders;
+        if (grewTextures) s.peakTextures = textures;
         if (draws >= 20) ++s.activeFrames;
-        if (draws >= 20 
+        // Discovery of shaders/textures advances the bar even when presentMs is huge.
+        // Also keep the classic ≤100 ms good-frame credit when frames are already fast.
+        if (grewShaders || grewTextures || (draws >= 20 
 && presentMs > 0.0 
-&& presentMs <= kOkFrameMs) ++s.goodFrames;
+&& presentMs <= kOkFrameMs)) ++s.goodFrames;
         const int next = computePercent(s);
         if (next > s.percent) s.percent = next;
         const uint64_t now = svcGetSystemTick();

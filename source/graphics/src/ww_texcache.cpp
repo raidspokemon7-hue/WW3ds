@@ -1060,34 +1060,39 @@ id);
             }
             
         }
-        if (bytes_ > opt_.budgetBytes) 
+        pressureEvict();
+        
+    }
+    bool TextureCache::pressureEvict() 
+    {
+        if (bytes_ <= opt_.budgetBytes) return false;
+        std::vector < std::pair < uint64_t, uint32_t >> cand;
+        for (const auto& kv : entries_) 
         {
-            std::vector < std::pair < uint64_t, uint32_t >> cand;
-            for (const auto& kv : entries_) 
+            const TexEntry& e = * kv.second.second;
+            if (e.lastUseFrame + uint64_t(opt_.protectFrames) < frame_) cand.push_back(
             {
-                const TexEntry& e = * kv.second.second;
-                if (e.lastUseFrame + uint64_t(opt_.protectFrames) < frame_) cand.push_back(
-                {
-                    e.lastUseFrame,
+                e.lastUseFrame,
 e.id
-                }
-                );
-                
             }
-            std::sort(cand.begin(),
-cand.end());
-            for (const auto& c : cand) 
-            {
-                if (bytes_ <= opt_.budgetBytes) break;
-                TCT("tc evict",
-c.second);
-                if (g_texConvLog) s_eraseWhy[entries_[c.second].second->addr] = 4;
-                erase(c.second);
-                st_.evicted++;
-                
-            }
+            );
             
         }
+        std::sort(cand.begin(),
+cand.end());
+        bool any = false;
+        for (const auto& c : cand) 
+        {
+            if (bytes_ <= opt_.budgetBytes) break;
+            TCT("tc evict",
+c.second);
+            if (g_texConvLog) s_eraseWhy[entries_[c.second].second->addr] = 4;
+            erase(c.second);
+            st_.evicted++;
+            any = true;
+            
+        }
+        return any;
         
     }
     uint8_t TextureCache::scaledRenderedTexmaps(const GxTexBinding bindings[8]) const 
